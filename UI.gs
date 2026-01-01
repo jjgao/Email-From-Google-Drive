@@ -11,6 +11,7 @@ function onOpen() {
 
   ui.createMenu('Email Campaign')
     .addItem('⚙️ Setup Configuration', 'showConfigDialog')
+    .addItem('📋 Create Sample Data', 'createSampleDataUI')
     .addSeparator()
     .addItem('📧 Send Test Email', 'sendTestEmailUI')
     .addItem('🚀 Send Campaign', 'sendCampaignUI')
@@ -298,5 +299,90 @@ function ensureStatusColumnUI() {
     SpreadsheetApp.getUi().alert('Success', 'Status column has been added or already exists.', SpreadsheetApp.getUi().ButtonSet.OK);
   } catch (error) {
     SpreadsheetApp.getUi().alert('Error', error.message, SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * Create sample data in the spreadsheet
+ */
+function createSampleDataUI() {
+  const ui = SpreadsheetApp.getUi();
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const recipientSheetName = getConfig(CONFIG_KEYS.RECIPIENT_SHEET_NAME);
+
+  const response = ui.alert(
+    'Create Sample Data',
+    `This will create sample recipient data in a sheet named "${recipientSheetName}".\n\n` +
+    'If the sheet already exists, you will be asked to confirm replacement.\n\n' +
+    'Continue?',
+    ui.ButtonSet.YES_NO
+  );
+
+  if (response !== ui.Button.YES) {
+    return;
+  }
+
+  try {
+    // Check if sheet already exists
+    let sheet = spreadsheet.getSheetByName(recipientSheetName);
+
+    if (sheet) {
+      const replaceResponse = ui.alert(
+        'Sheet Exists',
+        `Sheet "${recipientSheetName}" already exists. Replace it with sample data?`,
+        ui.ButtonSet.YES_NO
+      );
+
+      if (replaceResponse === ui.Button.YES) {
+        spreadsheet.deleteSheet(sheet);
+        sheet = spreadsheet.insertSheet(recipientSheetName);
+      } else {
+        return;
+      }
+    } else {
+      sheet = spreadsheet.insertSheet(recipientSheetName);
+    }
+
+    // Add headers
+    const headers = ['Email', 'Name', 'Company', 'Status'];
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+
+    // Format headers
+    const headerRange = sheet.getRange(1, 1, 1, headers.length);
+    headerRange.setFontWeight('bold');
+    headerRange.setBackground('#4285f4');
+    headerRange.setFontColor('#ffffff');
+
+    // Add sample data
+    const sampleData = [
+      ['your-email@example.com', 'John Doe', 'Acme Inc', 'pending'],
+      ['another-email@example.com', 'Jane Smith', 'Tech Corp', 'pending'],
+      ['third-email@example.com', 'Bob Johnson', 'StartupXYZ', 'pending']
+    ];
+
+    sheet.getRange(2, 1, sampleData.length, headers.length).setValues(sampleData);
+
+    // Set column widths
+    sheet.setColumnWidth(1, 220); // Email
+    sheet.setColumnWidth(2, 150); // Name
+    sheet.setColumnWidth(3, 150); // Company
+    sheet.setColumnWidth(4, 100); // Status
+
+    // Freeze header row
+    sheet.setFrozenRows(1);
+
+    // Activate the new sheet
+    spreadsheet.setActiveSheet(sheet);
+
+    ui.alert(
+      'Success',
+      `Sample recipient sheet "${recipientSheetName}" created with 3 test recipients.\n\n` +
+      'IMPORTANT: Please replace the sample email addresses with valid test emails before sending!\n\n' +
+      'You can edit the data directly in the sheet.',
+      ui.ButtonSet.OK
+    );
+
+  } catch (error) {
+    ui.alert('Error', `Failed to create sample data:\n\n${error.message}`, ui.ButtonSet.OK);
   }
 }
