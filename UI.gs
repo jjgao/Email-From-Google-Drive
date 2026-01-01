@@ -9,8 +9,20 @@
 function onOpen() {
   const ui = SpreadsheetApp.getUi();
 
+  // Auto-load configuration from Config sheet if it exists
+  try {
+    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    const configSheet = spreadsheet.getSheetByName(CONFIG_SHEET_NAME);
+    if (configSheet) {
+      loadConfigFromSheet();
+    }
+  } catch (error) {
+    console.log('Config auto-load skipped:', error.message);
+  }
+
   ui.createMenu('Email Campaign')
-    .addItem('⚙️ Setup Configuration', 'showConfigDialog')
+    .addItem('⚙️ Open Config Sheet', 'openConfigSheetUI')
+    .addItem('🔄 Reload Configuration', 'reloadConfigUI')
     .addItem('📋 Create Sample Data', 'createSampleDataUI')
     .addSeparator()
     .addItem('📧 Send Test Email', 'sendTestEmailUI')
@@ -20,6 +32,7 @@ function onOpen() {
     .addItem('📈 View Statistics', 'showStatsDialog')
     .addSeparator()
     .addSubMenu(ui.createMenu('Advanced')
+      .addItem('Setup via Dialog (Legacy)', 'showConfigDialog')
       .addItem('Clear Configuration', 'clearConfigUI')
       .addItem('Ensure Status Column', 'ensureStatusColumnUI'))
     .addToUi();
@@ -299,6 +312,81 @@ function ensureStatusColumnUI() {
     SpreadsheetApp.getUi().alert('Success', 'Status column has been added or already exists.', SpreadsheetApp.getUi().ButtonSet.OK);
   } catch (error) {
     SpreadsheetApp.getUi().alert('Error', error.message, SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * Open or create the config sheet
+ */
+function openConfigSheetUI() {
+  try {
+    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    let sheet = spreadsheet.getSheetByName(CONFIG_SHEET_NAME);
+
+    if (!sheet) {
+      // Create new config sheet
+      sheet = createOrUpdateConfigSheet();
+      SpreadsheetApp.getUi().alert(
+        'Config Sheet Created',
+        'A new configuration sheet has been created.\n\n' +
+        'Edit the values in the "Value" column, then click "Email Campaign → Reload Configuration" to apply changes.\n\n' +
+        'Required fields are highlighted in light red.',
+        SpreadsheetApp.getUi().ButtonSet.OK
+      );
+    } else {
+      // Just open existing sheet
+      spreadsheet.setActiveSheet(sheet);
+    }
+  } catch (error) {
+    SpreadsheetApp.getUi().alert('Error', `Failed to open config sheet:\n\n${error.message}`, SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * Reload configuration from config sheet
+ */
+function reloadConfigUI() {
+  const ui = SpreadsheetApp.getUi();
+
+  try {
+    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = spreadsheet.getSheetByName(CONFIG_SHEET_NAME);
+
+    if (!sheet) {
+      const response = ui.alert(
+        'Config Sheet Not Found',
+        'No configuration sheet found. Would you like to create one?',
+        ui.ButtonSet.YES_NO
+      );
+
+      if (response === ui.Button.YES) {
+        openConfigSheetUI();
+      }
+      return;
+    }
+
+    const result = loadConfigFromSheet();
+
+    if (result.success) {
+      // Validate configuration
+      const validation = validateConfig();
+
+      let message = result.message;
+
+      if (!validation.isValid) {
+        message += '\n\n⚠️ Warning: Some required settings are still missing:\n' +
+          validation.missing.map(k => '- ' + (CONFIG_LABELS[k] || k)).join('\n');
+      } else {
+        message += '\n\n✅ All required settings are configured!';
+      }
+
+      ui.alert('Configuration Reloaded', message, ui.ButtonSet.OK);
+    } else {
+      ui.alert('Error', result.message, ui.ButtonSet.OK);
+    }
+
+  } catch (error) {
+    ui.alert('Error', `Failed to reload configuration:\n\n${error.message}`, ui.ButtonSet.OK);
   }
 }
 
