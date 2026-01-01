@@ -1,0 +1,7 @@
+**/**
+!appsscript.json
+!*.gs
+.git/**
+.clasp.json
+README.md
+LICENSE
