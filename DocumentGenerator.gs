@@ -4,6 +4,58 @@
  */
 
 /**
+ * Extract all placeholder field names from template document
+ * @param {string} templateDocId - Template document ID
+ * @returns {Array<string>} Array of field names used in template
+ */
+function getTemplateFields(templateDocId) {
+  try {
+    const templateDoc = DocumentApp.openById(templateDocId);
+    const body = templateDoc.getBody();
+    const text = body.getText();
+
+    // Find all {{FieldName}} patterns
+    const placeholderPattern = /\{\{([^}]+)\}\}/g;
+    const fields = new Set();
+
+    let match;
+    while ((match = placeholderPattern.exec(text)) !== null) {
+      const fieldName = match[1].trim();
+      // Skip optional marker if present (for future enhancement)
+      const cleanFieldName = fieldName.replace(/^\?/, '');
+      fields.add(cleanFieldName);
+    }
+
+    return Array.from(fields);
+  } catch (error) {
+    throw new Error(`Failed to read template: ${error.message}`);
+  }
+}
+
+/**
+ * Validate that recipient has all required fields filled (based on template)
+ * @param {string} templateDocId - Template document ID
+ * @param {Object} recipientData - Recipient data
+ * @returns {Object} Object with isValid boolean and missing array
+ */
+function validateRecipientData(templateDocId, recipientData) {
+  const requiredFields = getTemplateFields(templateDocId);
+  const missing = [];
+
+  for (const fieldName of requiredFields) {
+    const value = recipientData[fieldName];
+    if (!value || value.toString().trim() === '') {
+      missing.push(fieldName);
+    }
+  }
+
+  return {
+    isValid: missing.length === 0,
+    missing: missing
+  };
+}
+
+/**
  * Create a personalized document for a single recipient
  * @param {string} templateDocId - Template document ID
  * @param {Object} recipientData - Recipient data with placeholders
@@ -12,6 +64,12 @@
  */
 function createPersonalizedDocument(templateDocId, recipientData, folderId) {
   try {
+    // Validate that all required fields are filled (based on template)
+    const validation = validateRecipientData(templateDocId, recipientData);
+    if (!validation.isValid) {
+      throw new Error(`Missing required fields: ${validation.missing.join(', ')}`);
+    }
+
     // Open template document
     const templateDoc = DocumentApp.openById(templateDocId);
 

@@ -393,10 +393,11 @@ function createSampleDataUI() {
     headerRange.setFontColor('#ffffff');
 
     // Add sample data
+    // Note: Third recipient has missing City field to test validation
     const sampleData = [
       ['your-email@example.com', 'John Doe', 'Acme Inc', '123 Main Street', 'New York', 'NY', '10001', 'pending', '', ''],
       ['another-email@example.com', 'Jane Smith', 'Tech Corp', '456 Oak Avenue', 'San Francisco', 'CA', '94102', 'pending', '', ''],
-      ['third-email@example.com', 'Bob Johnson', 'StartupXYZ', '789 Pine Road', 'Austin', 'TX', '73301', 'pending', '', '']
+      ['third-email@example.com', 'Bob Johnson', 'StartupXYZ', '789 Pine Road', '', 'TX', '73301', 'pending', '', '']
     ];
 
     sheet.getRange(2, 1, sampleData.length, headers.length).setValues(sampleData);
@@ -423,6 +424,7 @@ function createSampleDataUI() {
       'Success',
       `Sample recipient sheet "${recipientSheetName}" created with 3 test recipients.\n\n` +
       'IMPORTANT: Please replace the sample email addresses with valid test emails before sending!\n\n' +
+      'NOTE: The third recipient (Bob Johnson) has a missing City field to test validation. Document generation will skip this recipient if City is used in your template.\n\n' +
       'You can edit the data directly in the sheet.',
       ui.ButtonSet.OK
     );
