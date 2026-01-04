@@ -10,18 +10,20 @@ function onOpen() {
   const ui = SpreadsheetApp.getUi();
 
   ui.createMenu('Email Campaign')
+    // Setup & Configuration
     .addItem('⚙️ Open Config Sheet', 'openConfigSheetUI')
     .addItem('📋 Create Sample Data', 'createSampleDataUI')
     .addItem('📝 Create Sample Template', 'createSampleTemplateUI')
     .addSeparator()
-    .addItem('📄 Create Test Document', 'createTestDocumentUI')
+    // Document Generation
     .addItem('📑 Create All Documents', 'createAllDocumentsUI')
-    .addSeparator()
     .addItem('📕 Generate All PDFs', 'generateAllPdfsUI')
     .addSeparator()
+    // Email Campaign
     .addItem('📧 Send Test Email', 'sendTestEmailUI')
     .addItem('🚀 Send Campaign', 'sendCampaignUI')
     .addSeparator()
+    // Reports & Analytics
     .addItem('📊 View Logs', 'openLogSheet')
     .addItem('📈 View Statistics', 'showStatsDialog')
     .addSeparator()
