@@ -14,6 +14,9 @@ function onOpen() {
     .addItem('📋 Create Sample Data', 'createSampleDataUI')
     .addItem('📝 Create Sample Template', 'createSampleTemplateUI')
     .addSeparator()
+    .addItem('📄 Create Test Document', 'createTestDocumentUI')
+    .addItem('📑 Create All Documents', 'createAllDocumentsUI')
+    .addSeparator()
     .addItem('📧 Send Test Email', 'sendTestEmailUI')
     .addItem('🚀 Send Campaign', 'sendCampaignUI')
     .addSeparator()
@@ -373,7 +376,7 @@ function createSampleDataUI() {
     }
 
     // Add headers
-    const headers = ['Email', 'Name', 'Company', 'Street', 'City', 'State', 'ZIP', 'Status'];
+    const headers = ['Email', 'Name', 'Company', 'Street', 'City', 'State', 'ZIP', 'Status', 'Doc ID'];
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
 
     // Format headers
@@ -384,9 +387,9 @@ function createSampleDataUI() {
 
     // Add sample data
     const sampleData = [
-      ['your-email@example.com', 'John Doe', 'Acme Inc', '123 Main Street', 'New York', 'NY', '10001', 'pending'],
-      ['another-email@example.com', 'Jane Smith', 'Tech Corp', '456 Oak Avenue', 'San Francisco', 'CA', '94102', 'pending'],
-      ['third-email@example.com', 'Bob Johnson', 'StartupXYZ', '789 Pine Road', 'Austin', 'TX', '73301', 'pending']
+      ['your-email@example.com', 'John Doe', 'Acme Inc', '123 Main Street', 'New York', 'NY', '10001', 'pending', ''],
+      ['another-email@example.com', 'Jane Smith', 'Tech Corp', '456 Oak Avenue', 'San Francisco', 'CA', '94102', 'pending', ''],
+      ['third-email@example.com', 'Bob Johnson', 'StartupXYZ', '789 Pine Road', 'Austin', 'TX', '73301', 'pending', '']
     ];
 
     sheet.getRange(2, 1, sampleData.length, headers.length).setValues(sampleData);
@@ -400,6 +403,7 @@ function createSampleDataUI() {
     sheet.setColumnWidth(6, 60);  // State
     sheet.setColumnWidth(7, 80);  // ZIP
     sheet.setColumnWidth(8, 100); // Status
+    sheet.setColumnWidth(9, 300); // Doc ID
 
     // Freeze header row
     sheet.setFrozenRows(1);
@@ -569,5 +573,112 @@ function createSampleTemplateUI() {
 
   } catch (error) {
     ui.alert('Error', `Failed to create sample template:\n\n${error.message}`, ui.ButtonSet.OK);
+  }
+}
+
+/**
+ * Create a test document (UI wrapper)
+ */
+function createTestDocumentUI() {
+  const ui = SpreadsheetApp.getUi();
+
+  const response = ui.alert(
+    'Create Test Document',
+    'This will create a single test document using sample data.\n\n' +
+    'The document will be saved in your configured output folder.\n\n' +
+    'Continue?',
+    ui.ButtonSet.YES_NO
+  );
+
+  if (response !== ui.Button.YES) {
+    return;
+  }
+
+  try {
+    SpreadsheetApp.getActiveSpreadsheet().toast('Creating test document...', 'Processing', -1);
+
+    const result = createTestDocument();
+
+    SpreadsheetApp.getActiveSpreadsheet().toast('Test document created successfully!', 'Success', 3);
+
+    ui.alert(
+      'Test Document Created',
+      `Test document created successfully!\n\n` +
+      `Document Name: ${result.docName}\n` +
+      `Document ID: ${result.docId}\n\n` +
+      'The document will open in a new tab.',
+      ui.ButtonSet.OK
+    );
+
+    // Open the document in a new tab
+    const htmlOutput = HtmlService.createHtmlOutput(
+      `<script>window.open('${result.docUrl}', '_blank'); google.script.host.close();</script>`
+    ).setWidth(1).setHeight(1);
+
+    ui.showModalDialog(htmlOutput, 'Opening Document...');
+
+  } catch (error) {
+    SpreadsheetApp.getActiveSpreadsheet().toast('Failed to create test document', 'Error', 3);
+    ui.alert('Error', `Failed to create test document:\n\n${error.message}`, ui.ButtonSet.OK);
+  }
+}
+
+/**
+ * Create all documents (UI wrapper)
+ */
+function createAllDocumentsUI() {
+  const ui = SpreadsheetApp.getUi();
+
+  try {
+    // Get pending count
+    const pending = getPendingRecipients();
+
+    if (pending.length === 0) {
+      ui.alert(
+        'No Pending Recipients',
+        'All recipients either have documents created already or have non-pending status.\n\n' +
+        'To regenerate documents, clear the "Doc ID" column and set status back to "pending".',
+        ui.ButtonSet.OK
+      );
+      return;
+    }
+
+    const response = ui.alert(
+      'Create All Documents',
+      `This will create ${pending.length} personalized document(s).\n\n` +
+      'Documents will be saved to your configured output folder.\n\n' +
+      'This may take a few moments. Continue?',
+      ui.ButtonSet.YES_NO
+    );
+
+    if (response !== ui.Button.YES) {
+      return;
+    }
+
+    SpreadsheetApp.getActiveSpreadsheet().toast(`Creating ${pending.length} documents...`, 'Processing', -1);
+
+    const results = createAllDocuments();
+
+    SpreadsheetApp.getActiveSpreadsheet().toast('Document creation complete!', 'Success', 3);
+
+    // Show results
+    let message = `Documents Created: ${results.success}\n`;
+    message += `Failed: ${results.failed}\n`;
+    message += `Total: ${results.total}\n\n`;
+
+    if (results.failed > 0) {
+      message += 'Errors:\n';
+      results.errors.forEach(err => {
+        message += `• ${err.recipient}: ${err.error}\n`;
+      });
+    }
+
+    message += '\nCheck the Email Logs sheet for details.';
+
+    ui.alert('Document Creation Complete', message, ui.ButtonSet.OK);
+
+  } catch (error) {
+    SpreadsheetApp.getActiveSpreadsheet().toast('Failed to create documents', 'Error', 3);
+    ui.alert('Error', `Failed to create documents:\n\n${error.message}`, ui.ButtonSet.OK);
   }
 }

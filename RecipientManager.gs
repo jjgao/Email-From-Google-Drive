@@ -55,15 +55,28 @@ function getAllRecipients() {
 }
 
 /**
- * Get recipients with pending status
- * @returns {Array<Object>} Array of recipients that haven't been sent yet
+ * Get recipients with pending status (ready for document creation)
+ * @returns {Array<Object>} Array of recipients with {row, data} structure
  */
 function getPendingRecipients() {
   const allRecipients = getAllRecipients();
-  return allRecipients.filter(recipient => {
-    const status = (recipient.Status || '').toString().toLowerCase();
-    return status === '' || status === 'pending';
-  });
+
+  return allRecipients
+    .filter(recipient => {
+      const status = (recipient.Status || '').toString().toLowerCase();
+      const docId = (recipient['Doc ID'] || '').toString().trim();
+      // Include if status is pending/empty AND no doc ID exists yet
+      return (status === '' || status === 'pending') && docId === '';
+    })
+    .map(recipient => {
+      // Return in format expected by document generator
+      const rowIndex = recipient._rowIndex;
+      delete recipient._rowIndex; // Remove internal property
+      return {
+        row: rowIndex,
+        data: recipient
+      };
+    });
 }
 
 /**
