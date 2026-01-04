@@ -42,30 +42,64 @@ const CONFIG_DESCRIPTIONS = {
 };
 
 /**
- * Get a configuration value
+ * Get a configuration value directly from Config sheet
  * @param {string} key - Configuration key
  * @returns {string|null} Configuration value or null if not set
  */
 function getConfig(key) {
-  const properties = PropertiesService.getScriptProperties();
-  let value = properties.getProperty(key);
+  try {
+    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = spreadsheet.getSheetByName(CONFIG_SHEET_NAME);
 
-  // Return default value if not set and default exists
-  if (!value && DEFAULT_VALUES[key]) {
-    return DEFAULT_VALUES[key];
+    if (!sheet) {
+      // Return default value if sheet doesn't exist
+      return DEFAULT_VALUES[key] || null;
+    }
+
+    const data = sheet.getDataRange().getValues();
+    const label = CONFIG_LABELS[key];
+
+    // Skip instruction row and header row (start at index 2)
+    for (let i = 2; i < data.length; i++) {
+      if (data[i][0] === label) {
+        const value = data[i][1];
+        if (value && value.toString().trim() !== '') {
+          return value.toString().trim();
+        }
+        break;
+      }
+    }
+
+    // Return default value if not found in sheet
+    return DEFAULT_VALUES[key] || null;
+
+  } catch (error) {
+    console.log(`Error reading config for ${key}: ${error.message}`);
+    return DEFAULT_VALUES[key] || null;
   }
-
-  return value;
 }
 
 /**
- * Set a configuration value
+ * Set a configuration value in Config sheet
  * @param {string} key - Configuration key
  * @param {string} value - Configuration value
  */
 function setConfig(key, value) {
-  const properties = PropertiesService.getScriptProperties();
-  properties.setProperty(key, value);
+  try {
+    const sheet = getConfigSheet();
+    const data = sheet.getDataRange().getValues();
+    const label = CONFIG_LABELS[key];
+
+    // Find and update the row
+    for (let i = 2; i < data.length; i++) {
+      if (data[i][0] === label) {
+        sheet.getRange(i + 1, 2).setValue(value);
+        return;
+      }
+    }
+  } catch (error) {
+    throw new Error(`Failed to set config ${key}: ${error.message}`);
+  }
 }
 
 /**
@@ -73,8 +107,9 @@ function setConfig(key, value) {
  * @param {Object} configObject - Object with key-value pairs
  */
 function setMultipleConfig(configObject) {
-  const properties = PropertiesService.getScriptProperties();
-  properties.setProperties(configObject);
+  for (const key in configObject) {
+    setConfig(key, configObject[key]);
+  }
 }
 
 /**
@@ -121,8 +156,13 @@ function validateConfig() {
  * Clear all configuration (useful for testing)
  */
 function clearAllConfig() {
-  const properties = PropertiesService.getScriptProperties();
-  properties.deleteAllProperties();
+  const sheet = getConfigSheet();
+  const data = sheet.getDataRange().getValues();
+
+  // Clear all values in the Value column (skip instruction and header rows)
+  for (let i = 2; i < data.length; i++) {
+    sheet.getRange(i + 1, 2).setValue('');
+  }
 }
 
 /**
@@ -182,7 +222,7 @@ function initializeConfigSheet(sheet) {
   // Add instructions at the top
   sheet.insertRowBefore(1);
   sheet.getRange(1, 1, 1, 3).merge();
-  sheet.getRange(1, 1).setValue('📋 Email Campaign Configuration - Edit values below, then use "Email Campaign → Reload Configuration" to apply changes');
+  sheet.getRange(1, 1).setValue('📋 Email Campaign Configuration - Edit values in the "Value" column below. Changes take effect immediately.');
   sheet.getRange(1, 1).setBackground('#fff3cd');
   sheet.getRange(1, 1).setFontSize(10);
   sheet.getRange(1, 1).setWrap(true);
@@ -218,89 +258,6 @@ function initializeConfigSheet(sheet) {
   }
 }
 
-/**
- * Load configuration from sheet to Script Properties
- * @returns {Object} Result with success boolean and message
- */
-function loadConfigFromSheet() {
-  try {
-    const sheet = getConfigSheet();
-    const data = sheet.getDataRange().getValues();
-
-    // Skip instruction row and header row
-    const configData = {};
-
-    for (let i = 2; i < data.length; i++) {
-      const label = data[i][0];
-      const value = data[i][1];
-
-      // Find the config key for this label
-      for (const key in CONFIG_KEYS) {
-        const configKey = CONFIG_KEYS[key];
-        if (CONFIG_LABELS[configKey] === label) {
-          if (value && value.toString().trim() !== '') {
-            configData[configKey] = value.toString().trim();
-          }
-          break;
-        }
-      }
-    }
-
-    // Save to Script Properties
-    if (Object.keys(configData).length > 0) {
-      setMultipleConfig(configData);
-    }
-
-    return {
-      success: true,
-      message: `Configuration loaded successfully. ${Object.keys(configData).length} settings updated.`
-    };
-
-  } catch (error) {
-    return {
-      success: false,
-      message: `Failed to load configuration: ${error.message}`
-    };
-  }
-}
-
-/**
- * Save configuration from Script Properties to sheet
- * @returns {Object} Result with success boolean and message
- */
-function saveConfigToSheet() {
-  try {
-    const sheet = getConfigSheet();
-    const currentConfig = getAllConfig();
-    const data = sheet.getDataRange().getValues();
-
-    // Update values in sheet (skip instruction and header rows)
-    for (let i = 2; i < data.length; i++) {
-      const label = data[i][0];
-
-      // Find the config key for this label
-      for (const key in CONFIG_KEYS) {
-        const configKey = CONFIG_KEYS[key];
-        if (CONFIG_LABELS[configKey] === label) {
-          const value = currentConfig[key] || DEFAULT_VALUES[configKey] || '';
-          sheet.getRange(i + 1, 2).setValue(value);
-          break;
-        }
-      }
-    }
-
-    return {
-      success: true,
-      message: 'Configuration saved to sheet successfully.'
-    };
-
-  } catch (error) {
-    return {
-      success: false,
-      message: `Failed to save configuration: ${error.message}`
-    };
-  }
-}
 
 /**
  * Create or update config sheet with current values
