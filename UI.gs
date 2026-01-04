@@ -17,6 +17,8 @@ function onOpen() {
     .addItem('📄 Create Test Document', 'createTestDocumentUI')
     .addItem('📑 Create All Documents', 'createAllDocumentsUI')
     .addSeparator()
+    .addItem('📕 Generate All PDFs', 'generateAllPdfsUI')
+    .addSeparator()
     .addItem('📧 Send Test Email', 'sendTestEmailUI')
     .addItem('🚀 Send Campaign', 'sendCampaignUI')
     .addSeparator()
@@ -376,7 +378,7 @@ function createSampleDataUI() {
     }
 
     // Add headers
-    const headers = ['Email', 'Name', 'Company', 'Street', 'City', 'State', 'ZIP', 'Status', 'Doc ID'];
+    const headers = ['Email', 'Name', 'Company', 'Street', 'City', 'State', 'ZIP', 'Status', 'Doc ID', 'PDF ID'];
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
 
     // Format headers
@@ -387,9 +389,9 @@ function createSampleDataUI() {
 
     // Add sample data
     const sampleData = [
-      ['your-email@example.com', 'John Doe', 'Acme Inc', '123 Main Street', 'New York', 'NY', '10001', 'pending', ''],
-      ['another-email@example.com', 'Jane Smith', 'Tech Corp', '456 Oak Avenue', 'San Francisco', 'CA', '94102', 'pending', ''],
-      ['third-email@example.com', 'Bob Johnson', 'StartupXYZ', '789 Pine Road', 'Austin', 'TX', '73301', 'pending', '']
+      ['your-email@example.com', 'John Doe', 'Acme Inc', '123 Main Street', 'New York', 'NY', '10001', 'pending', '', ''],
+      ['another-email@example.com', 'Jane Smith', 'Tech Corp', '456 Oak Avenue', 'San Francisco', 'CA', '94102', 'pending', '', ''],
+      ['third-email@example.com', 'Bob Johnson', 'StartupXYZ', '789 Pine Road', 'Austin', 'TX', '73301', 'pending', '', '']
     ];
 
     sheet.getRange(2, 1, sampleData.length, headers.length).setValues(sampleData);
@@ -404,6 +406,7 @@ function createSampleDataUI() {
     sheet.setColumnWidth(7, 80);  // ZIP
     sheet.setColumnWidth(8, 100); // Status
     sheet.setColumnWidth(9, 300); // Doc ID
+    sheet.setColumnWidth(10, 300); // PDF ID
 
     // Freeze header row
     sheet.setFrozenRows(1);
@@ -680,5 +683,77 @@ function createAllDocumentsUI() {
   } catch (error) {
     SpreadsheetApp.getActiveSpreadsheet().toast('Failed to create documents', 'Error', 3);
     ui.alert('Error', `Failed to create documents:\n\n${error.message}`, ui.ButtonSet.OK);
+  }
+}
+
+/**
+ * Generate PDFs for all documents (UI wrapper)
+ */
+function generateAllPdfsUI() {
+  const ui = SpreadsheetApp.getUi();
+
+  try {
+    // Check if PDF folder is configured
+    const pdfFolderId = getConfig(CONFIG_KEYS.PDF_FOLDER_ID);
+    if (!pdfFolderId) {
+      ui.alert(
+        'PDF Folder Not Configured',
+        'Please configure the PDF Folder ID in the Config sheet before generating PDFs.\n\n' +
+        'This is where your PDF files will be saved.',
+        ui.ButtonSet.OK
+      );
+      return;
+    }
+
+    // Get recipients needing PDFs
+    const recipients = getRecipientsNeedingPdfs();
+
+    if (recipients.length === 0) {
+      ui.alert(
+        'No Documents to Convert',
+        'All recipients either have PDFs already or don\'t have documents yet.\n\n' +
+        'To regenerate PDFs, clear the "PDF ID" column.',
+        ui.ButtonSet.OK
+      );
+      return;
+    }
+
+    const response = ui.alert(
+      'Generate PDFs',
+      `This will generate ${recipients.length} PDF(s) from personalized documents.\n\n` +
+      'PDFs will be saved to your configured PDF folder.\n\n' +
+      'This may take a few moments. Continue?',
+      ui.ButtonSet.YES_NO
+    );
+
+    if (response !== ui.Button.YES) {
+      return;
+    }
+
+    SpreadsheetApp.getActiveSpreadsheet().toast(`Generating ${recipients.length} PDFs...`, 'Processing', -1);
+
+    const results = generateAllPdfs();
+
+    SpreadsheetApp.getActiveSpreadsheet().toast('PDF generation complete!', 'Success', 3);
+
+    // Show results
+    let message = `PDFs Generated: ${results.success}\n`;
+    message += `Failed: ${results.failed}\n`;
+    message += `Total: ${results.total}\n\n`;
+
+    if (results.failed > 0) {
+      message += 'Errors:\n';
+      results.errors.forEach(err => {
+        message += `• ${err.recipient}: ${err.error}\n`;
+      });
+    }
+
+    message += '\nCheck the Email Logs sheet for details.';
+
+    ui.alert('PDF Generation Complete', message, ui.ButtonSet.OK);
+
+  } catch (error) {
+    SpreadsheetApp.getActiveSpreadsheet().toast('Failed to generate PDFs', 'Error', 3);
+    ui.alert('Error', `Failed to generate PDFs:\n\n${error.message}`, ui.ButtonSet.OK);
   }
 }

@@ -225,3 +225,176 @@ function logDocumentCreation(recipientData, docId, docUrl, status, errorMessage 
     range.setBackground('#d1ecf1'); // Light blue
   }
 }
+
+/**
+ * Generate PDF from a Google Doc
+ * @param {string} docId - Document ID
+ * @param {string} pdfFolderId - Folder to save PDF
+ * @param {string} pdfName - Name for the PDF file
+ * @returns {Object} Object with pdfId and pdfUrl
+ */
+function generatePdfFromDoc(docId, pdfFolderId, pdfName) {
+  try {
+    // Get the document as a PDF blob
+    const doc = DriveApp.getFileById(docId);
+    const blob = doc.getAs('application/pdf');
+    blob.setName(pdfName);
+
+    // Get the PDF folder
+    const folder = DriveApp.getFolderById(pdfFolderId);
+
+    // Create the PDF file in the folder
+    const pdfFile = folder.createFile(blob);
+
+    return {
+      pdfId: pdfFile.getId(),
+      pdfUrl: pdfFile.getUrl(),
+      pdfName: pdfFile.getName()
+    };
+
+  } catch (error) {
+    throw new Error(`Failed to generate PDF: ${error.message}`);
+  }
+}
+
+/**
+ * Generate PDFs for all recipients with documents
+ * @returns {Object} Results with success and failure counts
+ */
+function generateAllPdfs() {
+  const pdfFolderId = getConfig(CONFIG_KEYS.PDF_FOLDER_ID);
+
+  if (!pdfFolderId) {
+    throw new Error('PDF Folder ID not configured. Please set it in the Config sheet.');
+  }
+
+  // Get all recipients with Doc IDs but no PDF IDs
+  const recipients = getRecipientsNeedingPdfs();
+
+  if (recipients.length === 0) {
+    throw new Error('No recipients with documents needing PDFs');
+  }
+
+  const results = {
+    total: recipients.length,
+    success: 0,
+    failed: 0,
+    errors: []
+  };
+
+  for (const recipient of recipients) {
+    try {
+      const docId = recipient.data['Doc ID'];
+      const pdfName = `${recipient.data.Name || recipient.data.Email} - PDF`;
+
+      // Generate PDF from document
+      const result = generatePdfFromDoc(docId, pdfFolderId, pdfName);
+
+      // Update recipient with PDF ID
+      updateRecipientPdfId(recipient.row, result.pdfId);
+
+      // Log success
+      logPdfGeneration(recipient.data, result.pdfId, result.pdfUrl, 'success');
+
+      results.success++;
+
+    } catch (error) {
+      // Log failure
+      logPdfGeneration(recipient.data, null, null, 'failed', error.message);
+
+      results.failed++;
+      results.errors.push({
+        recipient: recipient.data.Email || recipient.data.Name,
+        error: error.message
+      });
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Get recipients that have Doc IDs but no PDF IDs
+ * @returns {Array<Object>} Array of recipients with {row, data} structure
+ */
+function getRecipientsNeedingPdfs() {
+  const allRecipients = getAllRecipients();
+
+  return allRecipients
+    .filter(recipient => {
+      const docId = (recipient['Doc ID'] || '').toString().trim();
+      const pdfId = (recipient['PDF ID'] || '').toString().trim();
+      // Include if has doc ID but no PDF ID
+      return docId !== '' && pdfId === '';
+    })
+    .map(recipient => {
+      const rowIndex = recipient._rowIndex;
+      delete recipient._rowIndex;
+      return {
+        row: rowIndex,
+        data: recipient
+      };
+    });
+}
+
+/**
+ * Update recipient row with PDF ID
+ * @param {number} row - Row number in sheet
+ * @param {string} pdfId - PDF file ID
+ */
+function updateRecipientPdfId(row, pdfId) {
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const sheetName = getConfig(CONFIG_KEYS.RECIPIENT_SHEET_NAME);
+  const sheet = spreadsheet.getSheetByName(sheetName);
+
+  if (!sheet) {
+    throw new Error(`Sheet "${sheetName}" not found`);
+  }
+
+  // Find PDF ID column
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const pdfIdColumn = headers.indexOf('PDF ID') + 1;
+
+  if (pdfIdColumn === 0) {
+    throw new Error('PDF ID column not found in recipient sheet');
+  }
+
+  // Update the cell with PDF ID
+  sheet.getRange(row, pdfIdColumn).setValue(pdfId);
+}
+
+/**
+ * Log PDF generation activity
+ * @param {Object} recipientData - Recipient data
+ * @param {string} pdfId - PDF file ID (null if failed)
+ * @param {string} pdfUrl - PDF URL (null if failed)
+ * @param {string} status - Status (success/failed)
+ * @param {string} errorMessage - Error message if failed
+ */
+function logPdfGeneration(recipientData, pdfId, pdfUrl, status, errorMessage = '') {
+  const logSheet = getLogSheet();
+  const timestamp = new Date();
+
+  const rowData = [
+    timestamp,
+    'PDF Generation',
+    recipientData.Email || '',
+    recipientData.Name || '',
+    status,
+    pdfId || '',
+    pdfUrl || '',
+    errorMessage
+  ];
+
+  logSheet.appendRow(rowData);
+
+  // Color code the row
+  const lastRow = logSheet.getLastRow();
+  const range = logSheet.getRange(lastRow, 1, 1, rowData.length);
+
+  if (status === 'success') {
+    range.setBackground('#d4edda'); // Light green
+  } else if (status === 'failed') {
+    range.setBackground('#f8d7da'); // Light red
+  }
+}

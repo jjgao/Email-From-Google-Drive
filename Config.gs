@@ -6,6 +6,7 @@
 const CONFIG_KEYS = {
   TEMPLATE_DOC_ID: 'TEMPLATE_DOC_ID',
   OUTPUT_FOLDER_ID: 'OUTPUT_FOLDER_ID',
+  PDF_FOLDER_ID: 'PDF_FOLDER_ID',
   RECIPIENT_SHEET_NAME: 'RECIPIENT_SHEET_NAME',
   LOG_SHEET_NAME: 'LOG_SHEET_NAME',
   SENDER_NAME: 'SENDER_NAME',
@@ -25,6 +26,7 @@ const CONFIG_SHEET_NAME = 'Config';
 const CONFIG_LABELS = {
   TEMPLATE_DOC_ID: 'Template Document ID',
   OUTPUT_FOLDER_ID: 'Output Folder ID',
+  PDF_FOLDER_ID: 'PDF Folder ID',
   RECIPIENT_SHEET_NAME: 'Recipient Sheet Name',
   LOG_SHEET_NAME: 'Log Sheet Name',
   SENDER_NAME: 'Sender Name',
@@ -36,6 +38,7 @@ const CONFIG_LABELS = {
 const CONFIG_DESCRIPTIONS = {
   TEMPLATE_DOC_ID: 'Google Doc ID for email template (from URL)',
   OUTPUT_FOLDER_ID: 'Google Drive Folder ID where generated docs will be saved',
+  PDF_FOLDER_ID: 'Google Drive Folder ID where generated PDFs will be saved (optional)',
   RECIPIENT_SHEET_NAME: 'Name of sheet containing recipients',
   LOG_SHEET_NAME: 'Name of sheet for email logs',
   SENDER_NAME: 'Display name that appears as sender',
