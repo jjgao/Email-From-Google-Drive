@@ -12,6 +12,7 @@ function onOpen() {
   ui.createMenu('Email Campaign')
     .addItem('⚙️ Open Config Sheet', 'openConfigSheetUI')
     .addItem('📋 Create Sample Data', 'createSampleDataUI')
+    .addItem('📝 Create Sample Template', 'createSampleTemplateUI')
     .addSeparator()
     .addItem('📧 Send Test Email', 'sendTestEmailUI')
     .addItem('🚀 Send Campaign', 'sendCampaignUI')
@@ -412,5 +413,147 @@ function createSampleDataUI() {
 
   } catch (error) {
     ui.alert('Error', `Failed to create sample data:\n\n${error.message}`, ui.ButtonSet.OK);
+  }
+}
+
+/**
+ * Create sample email template document
+ */
+function createSampleTemplateUI() {
+  const ui = SpreadsheetApp.getUi();
+
+  const response = ui.alert(
+    'Create Sample Template',
+    'This will create a sample email template Google Doc.\n\n' +
+    'The document will include:\n' +
+    '• Example placeholder syntax\n' +
+    '• Basic HTML formatting examples\n' +
+    '• Template instructions\n\n' +
+    'Continue?',
+    ui.ButtonSet.YES_NO
+  );
+
+  if (response !== ui.Button.YES) {
+    return;
+  }
+
+  try {
+    // Create a new Google Doc
+    const doc = DocumentApp.create('Email Campaign Template - Sample');
+    const body = doc.getBody();
+
+    // Clear any default content
+    body.clear();
+
+    // Add title
+    const title = body.appendParagraph('Sample Email Template');
+    title.setHeading(DocumentApp.ParagraphHeading.HEADING1);
+
+    // Add greeting with placeholder
+    body.appendParagraph('Hi {{Name}},');
+
+    // Add body paragraphs
+    const para1 = body.appendParagraph('Thank you for being a valued customer of ');
+    para1.appendText('{{Company}}').setBold(true);
+    para1.appendText(". We're excited to share some updates with you!");
+
+    body.appendParagraph('');
+
+    // Add list items as separate paragraphs
+    body.appendParagraph("Here's what you can expect from us:");
+    body.appendParagraph('• Personalized updates and news');
+    body.appendParagraph('• Exclusive offers and promotions');
+    body.appendParagraph('• Important announcements');
+
+    body.appendParagraph('');
+
+    // Add link example
+    const linkPara = body.appendParagraph('Visit our website: ');
+    const linkText = linkPara.appendText('https://example.com');
+    linkText.setLinkUrl('https://example.com');
+    linkText.setUnderline(true);
+    linkText.setForegroundColor('#1155cc');
+
+    body.appendParagraph('');
+
+    // Add closing
+    body.appendParagraph('Best regards,');
+    body.appendParagraph('The {{Company}} Team');
+
+    // Add separator
+    body.appendParagraph('');
+    const separator = body.appendParagraph('─────────────────────────────────');
+    separator.setForegroundColor('#cccccc');
+
+    // Add instructions section
+    body.appendParagraph('');
+    const instructionsTitle = body.appendParagraph('Template Instructions');
+    instructionsTitle.setHeading(DocumentApp.ParagraphHeading.HEADING2);
+    instructionsTitle.setForegroundColor('#666666');
+
+    const instructions = [
+      '• Use {{FieldName}} for placeholders - field names must match your spreadsheet columns exactly',
+      '• Available fields from sample data: {{Email}}, {{Name}}, {{Company}}',
+      '• You can add any custom fields by adding columns to your Recipients sheet',
+      '• Basic formatting supported: bold, italic, underline, links',
+      '• Keep formatting simple - complex layouts may not work',
+      '• Delete these instructions before using the template'
+    ];
+
+    instructions.forEach(instruction => {
+      const para = body.appendParagraph(instruction);
+      para.setForegroundColor('#666666');
+      para.setFontSize(10);
+    });
+
+    // Save the document
+    doc.saveAndClose();
+
+    // Get the document ID and URL
+    const docId = doc.getId();
+    const docUrl = doc.getUrl();
+
+    // Ask if user wants to auto-populate Config sheet
+    const configResponse = ui.alert(
+      'Sample Template Created!',
+      `Your sample template has been created.\n\n` +
+      `Document ID: ${docId}\n\n` +
+      'Would you like to automatically add this template ID to your Config sheet?',
+      ui.ButtonSet.YES_NO
+    );
+
+    if (configResponse === ui.Button.YES) {
+      // Set the template ID in config
+      setConfig(CONFIG_KEYS.TEMPLATE_DOC_ID, docId);
+
+      ui.alert(
+        'Success',
+        'Sample template created and configured!\n\n' +
+        `Document ID has been added to your Config sheet.\n\n` +
+        'The template will open in a new tab. You can edit it as needed.\n\n' +
+        `Document URL: ${docUrl}`,
+        ui.ButtonSet.OK
+      );
+    } else {
+      ui.alert(
+        'Success',
+        'Sample template created!\n\n' +
+        `Document ID: ${docId}\n\n` +
+        'Copy this ID to the "Template Document ID" field in your Config sheet.\n\n' +
+        'The template will open in a new tab. You can edit it as needed.\n\n' +
+        `Document URL: ${docUrl}`,
+        ui.ButtonSet.OK
+      );
+    }
+
+    // Open the document in a new tab
+    const htmlOutput = HtmlService.createHtmlOutput(
+      `<script>window.open('${docUrl}', '_blank'); google.script.host.close();</script>`
+    ).setWidth(1).setHeight(1);
+
+    ui.showModalDialog(htmlOutput, 'Opening Template...');
+
+  } catch (error) {
+    ui.alert('Error', `Failed to create sample template:\n\n${error.message}`, ui.ButtonSet.OK);
   }
 }
