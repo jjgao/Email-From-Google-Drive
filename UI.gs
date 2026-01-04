@@ -373,7 +373,7 @@ function createSampleDataUI() {
     }
 
     // Add headers
-    const headers = ['Email', 'Name', 'Company', 'Address', 'Status'];
+    const headers = ['Email', 'Name', 'Company', 'Street', 'City', 'State', 'ZIP', 'Status'];
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
 
     // Format headers
@@ -384,9 +384,9 @@ function createSampleDataUI() {
 
     // Add sample data
     const sampleData = [
-      ['your-email@example.com', 'John Doe', 'Acme Inc', '123 Main St, New York, NY 10001', 'pending'],
-      ['another-email@example.com', 'Jane Smith', 'Tech Corp', '456 Oak Ave, San Francisco, CA 94102', 'pending'],
-      ['third-email@example.com', 'Bob Johnson', 'StartupXYZ', '789 Pine Rd, Austin, TX 73301', 'pending']
+      ['your-email@example.com', 'John Doe', 'Acme Inc', '123 Main Street', 'New York', 'NY', '10001', 'pending'],
+      ['another-email@example.com', 'Jane Smith', 'Tech Corp', '456 Oak Avenue', 'San Francisco', 'CA', '94102', 'pending'],
+      ['third-email@example.com', 'Bob Johnson', 'StartupXYZ', '789 Pine Road', 'Austin', 'TX', '73301', 'pending']
     ];
 
     sheet.getRange(2, 1, sampleData.length, headers.length).setValues(sampleData);
@@ -395,8 +395,11 @@ function createSampleDataUI() {
     sheet.setColumnWidth(1, 220); // Email
     sheet.setColumnWidth(2, 150); // Name
     sheet.setColumnWidth(3, 150); // Company
-    sheet.setColumnWidth(4, 250); // Address
-    sheet.setColumnWidth(5, 100); // Status
+    sheet.setColumnWidth(4, 200); // Street
+    sheet.setColumnWidth(5, 120); // City
+    sheet.setColumnWidth(6, 60);  // State
+    sheet.setColumnWidth(7, 80);  // ZIP
+    sheet.setColumnWidth(8, 100); // Status
 
     // Freeze header row
     sheet.setFrozenRows(1);
@@ -450,8 +453,17 @@ function createSampleTemplateUI() {
     const title = body.appendParagraph('Sample Email Template');
     title.setHeading(DocumentApp.ParagraphHeading.HEADING1);
 
+    body.appendParagraph('');
+
+    // Add formal letter address block
+    body.appendParagraph('{{Name}}');
+    body.appendParagraph('{{Street}}');
+    const cityStateZip = body.appendParagraph('{{City}}, {{State}} {{ZIP}}');
+
+    body.appendParagraph('');
+
     // Add greeting with placeholder
-    body.appendParagraph('Hi {{Name}},');
+    body.appendParagraph('Dear {{Name}},');
 
     // Add body paragraphs
     const para1 = body.appendParagraph('Thank you for being a valued customer of ');
@@ -477,13 +489,6 @@ function createSampleTemplateUI() {
 
     body.appendParagraph('');
 
-    // Add address example
-    const addressPara = body.appendParagraph('If you need to update your mailing address (currently: ');
-    addressPara.appendText('{{Address}}').setItalic(true);
-    addressPara.appendText('), please let us know.');
-
-    body.appendParagraph('');
-
     // Add closing
     body.appendParagraph('Best regards,');
     body.appendParagraph('The {{Company}} Team');
@@ -501,7 +506,8 @@ function createSampleTemplateUI() {
 
     const instructions = [
       '• Use {{FieldName}} for placeholders - field names must match your spreadsheet columns exactly',
-      '• Available fields from sample data: {{Email}}, {{Name}}, {{Company}}, {{Address}}',
+      '• Available fields from sample data: {{Name}}, {{Company}}, {{Street}}, {{City}}, {{State}}, {{ZIP}}, {{Email}}',
+      '• This template uses formal letter format with name and address at the top',
       '• You can add any custom fields by adding columns to your Recipients sheet',
       '• Basic formatting supported: bold, italic, underline, links',
       '• Keep formatting simple - complex layouts may not work',
