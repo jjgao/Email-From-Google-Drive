@@ -17,7 +17,9 @@ function onOpen() {
     .addSeparator()
     // Document Generation
     .addItem('📑 Create All Documents', 'createAllDocumentsUI')
+    .addItem('🔄 Regenerate All Documents', 'regenerateAllDocumentsUI')
     .addItem('📕 Generate All PDFs', 'generateAllPdfsUI')
+    .addItem('🔄 Regenerate All PDFs', 'regenerateAllPdfsUI')
     .addSeparator()
     // Email Campaign
     .addItem('📧 Send Test Email', 'sendTestEmailUI')
@@ -30,7 +32,8 @@ function onOpen() {
     .addSubMenu(ui.createMenu('Advanced')
       .addItem('Setup via Dialog (Legacy)', 'showConfigDialog')
       .addItem('Clear Configuration', 'clearConfigUI')
-      .addItem('Ensure Status Column', 'ensureStatusColumnUI'))
+      .addItem('Ensure Status Column', 'ensureStatusColumnUI')
+      .addItem('🗑️ Delete Orphan Files', 'deleteOrphanFilesUI'))
     .addToUi();
 }
 
@@ -757,5 +760,200 @@ function generateAllPdfsUI() {
   } catch (error) {
     SpreadsheetApp.getActiveSpreadsheet().toast('Failed to generate PDFs', 'Error', 3);
     ui.alert('Error', `Failed to generate PDFs:\n\n${error.message}`, ui.ButtonSet.OK);
+  }
+}
+
+/**
+ * Regenerate all documents (UI wrapper)
+ */
+function regenerateAllDocumentsUI() {
+  const ui = SpreadsheetApp.getUi();
+
+  try {
+    // Get all recipients count
+    const allRecipients = getAllRecipientsFormatted();
+
+    if (allRecipients.length === 0) {
+      ui.alert(
+        'No Recipients',
+        'No recipients found in the sheet.',
+        ui.ButtonSet.OK
+      );
+      return;
+    }
+
+    const response = ui.alert(
+      'Regenerate All Documents',
+      `⚠️ WARNING: This will regenerate documents for ALL ${allRecipients.length} recipient(s), overwriting existing documents.\n\n` +
+      'Existing documents will be replaced with new ones.\n' +
+      'PDF IDs will be cleared (PDFs will need to be regenerated).\n\n' +
+      'This action cannot be undone. Continue?',
+      ui.ButtonSet.YES_NO
+    );
+
+    if (response !== ui.Button.YES) {
+      return;
+    }
+
+    SpreadsheetApp.getActiveSpreadsheet().toast(`Regenerating ${allRecipients.length} documents...`, 'Processing', -1);
+
+    const results = regenerateAllDocuments();
+
+    SpreadsheetApp.getActiveSpreadsheet().toast('Document regeneration complete!', 'Success', 3);
+
+    // Show results
+    let message = `Documents Regenerated: ${results.success}\n`;
+    message += `Failed: ${results.failed}\n`;
+    message += `Total: ${results.total}\n\n`;
+
+    if (results.failed > 0) {
+      message += 'Errors:\n';
+      results.errors.forEach(err => {
+        message += `• ${err.recipient}: ${err.error}\n`;
+      });
+    }
+
+    message += '\nCheck the Email Logs sheet for details.';
+
+    ui.alert('Document Regeneration Complete', message, ui.ButtonSet.OK);
+
+  } catch (error) {
+    SpreadsheetApp.getActiveSpreadsheet().toast('Failed to regenerate documents', 'Error', 3);
+    ui.alert('Error', `Failed to regenerate documents:\n\n${error.message}`, ui.ButtonSet.OK);
+  }
+}
+
+/**
+ * Regenerate all PDFs (UI wrapper)
+ */
+function regenerateAllPdfsUI() {
+  const ui = SpreadsheetApp.getUi();
+
+  try {
+    // Check if PDF folder is configured
+    const pdfFolderId = getConfig(CONFIG_KEYS.PDF_FOLDER_ID);
+    if (!pdfFolderId) {
+      ui.alert(
+        'PDF Folder Not Configured',
+        'Please configure the PDF Folder ID in the Config sheet before generating PDFs.\n\n' +
+        'This is where your PDF files will be saved.',
+        ui.ButtonSet.OK
+      );
+      return;
+    }
+
+    // Get recipients with documents
+    const allRecipients = getAllRecipientsFormatted();
+    const recipientsWithDocs = allRecipients.filter(r => {
+      const docId = (r.data['Doc ID'] || '').toString().trim();
+      return docId !== '';
+    });
+
+    if (recipientsWithDocs.length === 0) {
+      ui.alert(
+        'No Documents Found',
+        'No recipients have documents yet. Generate documents first.',
+        ui.ButtonSet.OK
+      );
+      return;
+    }
+
+    const response = ui.alert(
+      'Regenerate All PDFs',
+      `⚠️ WARNING: This will regenerate PDFs for ALL ${recipientsWithDocs.length} recipient(s) with documents, overwriting existing PDFs.\n\n` +
+      'Existing PDFs will be replaced with new ones.\n\n' +
+      'This action cannot be undone. Continue?',
+      ui.ButtonSet.YES_NO
+    );
+
+    if (response !== ui.Button.YES) {
+      return;
+    }
+
+    SpreadsheetApp.getActiveSpreadsheet().toast(`Regenerating ${recipientsWithDocs.length} PDFs...`, 'Processing', -1);
+
+    const results = regenerateAllPdfs();
+
+    SpreadsheetApp.getActiveSpreadsheet().toast('PDF regeneration complete!', 'Success', 3);
+
+    // Show results
+    let message = `PDFs Regenerated: ${results.success}\n`;
+    message += `Failed: ${results.failed}\n`;
+    message += `Total: ${results.total}\n\n`;
+
+    if (results.failed > 0) {
+      message += 'Errors:\n';
+      results.errors.forEach(err => {
+        message += `• ${err.recipient}: ${err.error}\n`;
+      });
+    }
+
+    message += '\nCheck the Email Logs sheet for details.';
+
+    ui.alert('PDF Regeneration Complete', message, ui.ButtonSet.OK);
+
+  } catch (error) {
+    SpreadsheetApp.getActiveSpreadsheet().toast('Failed to regenerate PDFs', 'Error', 3);
+    ui.alert('Error', `Failed to regenerate PDFs:\n\n${error.message}`, ui.ButtonSet.OK);
+  }
+}
+
+/**
+ * Delete orphan files (UI wrapper)
+ */
+function deleteOrphanFilesUI() {
+  const ui = SpreadsheetApp.getUi();
+
+  const response = ui.alert(
+    'Delete Orphan Files',
+    '⚠️ WARNING: This will permanently delete files in your output folders that don\'t match any recipient in the sheet.\n\n' +
+    'Orphan files are those with IDs that don\'t appear in the "Doc ID" or "PDF ID" columns.\n\n' +
+    'Deleted files will be moved to trash and can be recovered from Google Drive trash for 30 days.\n\n' +
+    'Continue?',
+    ui.ButtonSet.YES_NO
+  );
+
+  if (response !== ui.Button.YES) {
+    return;
+  }
+
+  try {
+    SpreadsheetApp.getActiveSpreadsheet().toast('Scanning for orphan files...', 'Processing', -1);
+
+    const results = deleteAllOrphanFiles();
+
+    SpreadsheetApp.getActiveSpreadsheet().toast('Cleanup complete!', 'Success', 3);
+
+    // Show results
+    let message = `Orphan files have been moved to trash:\n\n`;
+    message += `Documents deleted: ${results.documents.deleted}\n`;
+    message += `PDFs deleted: ${results.pdfs.deleted}\n\n`;
+
+    if (results.documents.deleted > 0) {
+      message += 'Deleted documents:\n';
+      results.documents.files.forEach(file => {
+        message += `• ${file.name}\n`;
+      });
+      message += '\n';
+    }
+
+    if (results.pdfs.deleted > 0) {
+      message += 'Deleted PDFs:\n';
+      results.pdfs.files.forEach(file => {
+        message += `• ${file.name}\n`;
+      });
+    }
+
+    if (results.documents.deleted === 0 && results.pdfs.deleted === 0) {
+      message = 'No orphan files found. All files match current recipients.';
+    } else {
+      message += '\nFiles can be recovered from Google Drive trash for 30 days.';
+    }
+
+    ui.alert('Cleanup Complete', message, ui.ButtonSet.OK);
+
+  } catch (error) {
+    SpreadsheetApp.getActiveSpreadsheet().toast('Failed to delete orphan files', 'Error', 3);
+    ui.alert('Error', `Failed to delete orphan files:\n\n${error.message}`, ui.ButtonSet.OK);
   }
 }

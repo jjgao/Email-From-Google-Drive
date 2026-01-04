@@ -55,7 +55,8 @@ function getAllRecipients() {
 }
 
 /**
- * Get recipients with pending status (ready for document creation)
+ * Get recipients ready for document creation (no Doc ID yet)
+ * Status is only used for email sending, not document creation
  * @returns {Array<Object>} Array of recipients with {row, data} structure
  */
 function getPendingRecipients() {
@@ -63,10 +64,9 @@ function getPendingRecipients() {
 
   return allRecipients
     .filter(recipient => {
-      const status = (recipient.Status || '').toString().toLowerCase();
       const docId = (recipient['Doc ID'] || '').toString().trim();
-      // Include if status is pending/empty AND no doc ID exists yet
-      return (status === '' || status === 'pending') && docId === '';
+      // Include only recipients without a Doc ID
+      return docId === '';
     })
     .map(recipient => {
       // Return in format expected by document generator
@@ -77,6 +77,23 @@ function getPendingRecipients() {
         data: recipient
       };
     });
+}
+
+/**
+ * Get all recipients formatted for document/PDF operations
+ * @returns {Array<Object>} Array of recipients with {row, data} structure
+ */
+function getAllRecipientsFormatted() {
+  const allRecipients = getAllRecipients();
+
+  return allRecipients.map(recipient => {
+    const rowIndex = recipient._rowIndex;
+    delete recipient._rowIndex;
+    return {
+      row: rowIndex,
+      data: recipient
+    };
+  });
 }
 
 /**

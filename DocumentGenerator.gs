@@ -116,7 +116,9 @@ function createAllDocuments() {
 
       // Update recipient with document ID
       updateRecipientDocId(recipient.row, result.docId);
-      updateRecipientStatus(recipient.row, 'created');
+
+      // Clear PDF ID since document has been regenerated (PDF would be out of sync)
+      clearRecipientPdfId(recipient.row);
 
       // Log success
       logDocumentCreation(recipient.data, result.docId, result.docUrl, 'success');
@@ -126,7 +128,6 @@ function createAllDocuments() {
     } catch (error) {
       // Log failure
       logDocumentCreation(recipient.data, null, null, 'failed', error.message);
-      updateRecipientStatus(recipient.row, 'failed');
 
       results.failed++;
       results.errors.push({
@@ -406,4 +407,263 @@ function logPdfGeneration(recipientData, pdfId, pdfUrl, status, errorMessage = '
   } else if (status === 'failed') {
     range.setBackground('#f8d7da'); // Light red
   }
+}
+
+/**
+ * Clear PDF ID from recipient row
+ * Called when document is regenerated to ensure PDF stays in sync
+ * @param {number} row - Row number in sheet
+ */
+function clearRecipientPdfId(row) {
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const sheetName = getConfig(CONFIG_KEYS.RECIPIENT_SHEET_NAME);
+  const sheet = spreadsheet.getSheetByName(sheetName);
+
+  if (!sheet) {
+    return; // Silently return if sheet not found
+  }
+
+  // Find PDF ID column
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const pdfIdColumn = headers.indexOf('PDF ID') + 1;
+
+  if (pdfIdColumn > 0) {
+    // Clear the cell
+    sheet.getRange(row, pdfIdColumn).setValue('');
+  }
+}
+
+/**
+ * Regenerate documents for ALL recipients (ignoring existing Doc IDs)
+ * @returns {Object} Results with success and failure counts
+ */
+function regenerateAllDocuments() {
+  const validation = validateConfig();
+  if (!validation.isValid) {
+    throw new Error(`Missing required configuration: ${validation.missing.join(', ')}`);
+  }
+
+  const templateDocId = getConfig(CONFIG_KEYS.TEMPLATE_DOC_ID);
+  const folderId = getConfig(CONFIG_KEYS.OUTPUT_FOLDER_ID);
+  const recipients = getAllRecipientsFormatted();
+
+  if (recipients.length === 0) {
+    throw new Error('No recipients found');
+  }
+
+  const results = {
+    total: recipients.length,
+    success: 0,
+    failed: 0,
+    errors: []
+  };
+
+  for (const recipient of recipients) {
+    try {
+      // Create personalized document
+      const result = createPersonalizedDocument(templateDocId, recipient.data, folderId);
+
+      // Update recipient with document ID
+      updateRecipientDocId(recipient.row, result.docId);
+
+      // Clear PDF ID since document has been regenerated
+      clearRecipientPdfId(recipient.row);
+
+      // Log success
+      logDocumentCreation(recipient.data, result.docId, result.docUrl, 'regenerated');
+
+      results.success++;
+
+    } catch (error) {
+      // Log failure
+      logDocumentCreation(recipient.data, null, null, 'failed', error.message);
+
+      results.failed++;
+      results.errors.push({
+        recipient: recipient.data.Email || recipient.data.Name,
+        error: error.message
+      });
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Regenerate PDFs for ALL recipients with documents (ignoring existing PDF IDs)
+ * @returns {Object} Results with success and failure counts
+ */
+function regenerateAllPdfs() {
+  const pdfFolderId = getConfig(CONFIG_KEYS.PDF_FOLDER_ID);
+
+  if (!pdfFolderId) {
+    throw new Error('PDF Folder ID not configured. Please set it in the Config sheet.');
+  }
+
+  // Get all recipients with Doc IDs (ignore PDF ID status)
+  const allRecipients = getAllRecipientsFormatted();
+  const recipients = allRecipients.filter(r => {
+    const docId = (r.data['Doc ID'] || '').toString().trim();
+    return docId !== '';
+  });
+
+  if (recipients.length === 0) {
+    throw new Error('No recipients with documents found');
+  }
+
+  const results = {
+    total: recipients.length,
+    success: 0,
+    failed: 0,
+    errors: []
+  };
+
+  for (const recipient of recipients) {
+    try {
+      const docId = recipient.data['Doc ID'];
+      const pdfName = `${recipient.data.Name || recipient.data.Email} - PDF`;
+
+      // Generate PDF from document
+      const result = generatePdfFromDoc(docId, pdfFolderId, pdfName);
+
+      // Update recipient with PDF ID
+      updateRecipientPdfId(recipient.row, result.pdfId);
+
+      // Log success
+      logPdfGeneration(recipient.data, result.pdfId, result.pdfUrl, 'regenerated');
+
+      results.success++;
+
+    } catch (error) {
+      // Log failure
+      logPdfGeneration(recipient.data, null, null, 'failed', error.message);
+
+      results.failed++;
+      results.errors.push({
+        recipient: recipient.data.Email || recipient.data.Name,
+        error: error.message
+      });
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Delete orphan documents from output folder
+ * (files that don't match any current recipient)
+ * @returns {Object} Results with deleted count
+ */
+function deleteOrphanDocuments() {
+  const folderId = getConfig(CONFIG_KEYS.OUTPUT_FOLDER_ID);
+
+  if (!folderId) {
+    throw new Error('Output Folder ID not configured.');
+  }
+
+  const allRecipients = getAllRecipients();
+  const validDocIds = allRecipients
+    .map(r => (r['Doc ID'] || '').toString().trim())
+    .filter(id => id !== '');
+
+  const folder = DriveApp.getFolderById(folderId);
+  const files = folder.getFiles();
+
+  let deletedCount = 0;
+  const deletedFiles = [];
+
+  while (files.hasNext()) {
+    const file = files.next();
+    const fileId = file.getId();
+
+    // If file ID is not in our valid Doc IDs, it's an orphan
+    if (!validDocIds.includes(fileId)) {
+      deletedFiles.push({
+        name: file.getName(),
+        id: fileId
+      });
+      file.setTrashed(true);
+      deletedCount++;
+    }
+  }
+
+  return {
+    deleted: deletedCount,
+    files: deletedFiles
+  };
+}
+
+/**
+ * Delete orphan PDFs from PDF folder
+ * (files that don't match any current recipient)
+ * @returns {Object} Results with deleted count
+ */
+function deleteOrphanPdfs() {
+  const pdfFolderId = getConfig(CONFIG_KEYS.PDF_FOLDER_ID);
+
+  if (!pdfFolderId) {
+    throw new Error('PDF Folder ID not configured.');
+  }
+
+  const allRecipients = getAllRecipients();
+  const validPdfIds = allRecipients
+    .map(r => (r['PDF ID'] || '').toString().trim())
+    .filter(id => id !== '');
+
+  const folder = DriveApp.getFolderById(pdfFolderId);
+  const files = folder.getFiles();
+
+  let deletedCount = 0;
+  const deletedFiles = [];
+
+  while (files.hasNext()) {
+    const file = files.next();
+    const fileId = file.getId();
+
+    // If file ID is not in our valid PDF IDs, it's an orphan
+    if (!validPdfIds.includes(fileId)) {
+      deletedFiles.push({
+        name: file.getName(),
+        id: fileId
+      });
+      file.setTrashed(true);
+      deletedCount++;
+    }
+  }
+
+  return {
+    deleted: deletedCount,
+    files: deletedFiles
+  };
+}
+
+/**
+ * Delete all orphan files (both documents and PDFs)
+ * @returns {Object} Results with deleted counts
+ */
+function deleteAllOrphanFiles() {
+  const results = {
+    documents: { deleted: 0, files: [] },
+    pdfs: { deleted: 0, files: [] }
+  };
+
+  // Delete orphan documents
+  try {
+    results.documents = deleteOrphanDocuments();
+  } catch (error) {
+    if (error.message !== 'Output Folder ID not configured.') {
+      throw error;
+    }
+  }
+
+  // Delete orphan PDFs
+  try {
+    results.pdfs = deleteOrphanPdfs();
+  } catch (error) {
+    if (error.message !== 'PDF Folder ID not configured.') {
+      throw error;
+    }
+  }
+
+  return results;
 }
