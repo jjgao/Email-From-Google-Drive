@@ -75,6 +75,7 @@ function processParagraph(paragraph) {
 
 /**
  * Process text with formatting
+ * Groups consecutive characters with the same formatting to preserve placeholders
  * @param {GoogleAppsScript.Document.Text} element
  * @returns {string} Formatted HTML text
  */
@@ -84,27 +85,65 @@ function processText(element) {
     return '';
   }
 
-  let html = '';
   const textElement = element.editAsText();
+  const spans = [];
+  let currentSpan = {
+    text: '',
+    isBold: false,
+    isItalic: false,
+    linkUrl: null
+  };
 
+  // Group consecutive characters with the same formatting
   for (let i = 0; i < text.length; i++) {
-    let char = text[i];
-    let formatted = char;
-
-    // Check for formatting at this position
+    const char = text[i];
     const isBold = textElement.isBold(i);
     const isItalic = textElement.isItalic(i);
     const linkUrl = textElement.getLinkUrl(i);
 
-    // Apply formatting
-    if (isBold) {
-      formatted = `<strong>${char}</strong>`;
+    // Check if formatting changed
+    const formattingChanged =
+      currentSpan.isBold !== isBold ||
+      currentSpan.isItalic !== isItalic ||
+      currentSpan.linkUrl !== linkUrl;
+
+    if (formattingChanged && currentSpan.text !== '') {
+      // Save current span and start a new one
+      spans.push({...currentSpan});
+      currentSpan = {
+        text: char,
+        isBold: isBold,
+        isItalic: isItalic,
+        linkUrl: linkUrl
+      };
+    } else {
+      // Continue current span
+      currentSpan.text += char;
+      currentSpan.isBold = isBold;
+      currentSpan.isItalic = isItalic;
+      currentSpan.linkUrl = linkUrl;
     }
-    if (isItalic) {
-      formatted = `<em>${formatted || char}</em>`;
+  }
+
+  // Add the last span
+  if (currentSpan.text !== '') {
+    spans.push(currentSpan);
+  }
+
+  // Convert spans to HTML
+  let html = '';
+  for (const span of spans) {
+    let formatted = span.text;
+
+    // Apply formatting in the correct order (innermost to outermost)
+    if (span.isBold) {
+      formatted = `<strong>${formatted}</strong>`;
     }
-    if (linkUrl) {
-      formatted = `<a href="${linkUrl}">${formatted || char}</a>`;
+    if (span.isItalic) {
+      formatted = `<em>${formatted}</em>`;
+    }
+    if (span.linkUrl) {
+      formatted = `<a href="${span.linkUrl}">${formatted}</a>`;
     }
 
     html += formatted;
