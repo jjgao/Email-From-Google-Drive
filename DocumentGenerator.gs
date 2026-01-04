@@ -67,11 +67,20 @@ function generateDocumentName(recipientData) {
 function replaceInDocument(body, data) {
   // Replace in regular text
   for (const key in data) {
+    // Skip internal/system fields
+    if (key === '_rowIndex' || key === 'Status' || key === 'Doc ID' || key === 'PDF ID') {
+      continue;
+    }
+
     const placeholder = `{{${key}}}`;
     const value = data[key] || '';
 
+    // Escape special regex characters in the placeholder
+    // {{Name}} needs to be escaped as \{\{Name\}\}
+    const escapedPlaceholder = placeholder.replace(/[{}]/g, '\\$&');
+
     // Replace in body text
-    body.replaceText(placeholder, value);
+    body.replaceText(escapedPlaceholder, value);
   }
 }
 
