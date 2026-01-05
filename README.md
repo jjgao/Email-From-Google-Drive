@@ -8,14 +8,25 @@ This Google Apps Script application allows you to send personalized email campai
 
 ## Features (MVP1)
 
+### Email Features
 - ✅ **Template-based emails** - Use Google Docs with `{{placeholder}}` syntax
 - ✅ **Personalized content** - Replace placeholders with recipient data from sheets
 - ✅ **Basic HTML support** - Bold, italic, links, and headers in templates
 - ✅ **Test email capability** - Send test emails before launching campaigns
 - ✅ **Status tracking** - Track sent/failed status for each recipient
-- ✅ **Comprehensive logging** - All email activities logged to a sheet
-- ✅ **Simple UI** - Custom menu in Google Sheets for easy access
 - ✅ **Quota management** - Check available quota before sending
+
+### Document Generation
+- ✅ **Personalized documents** - Generate Google Docs for each recipient
+- ✅ **Smart validation** - Only validates fields actually used in your template
+- ✅ **PDF export** - Convert generated documents to PDFs
+- ✅ **Incremental & full regeneration** - Create new docs or regenerate all existing ones
+- ✅ **Orphan file cleanup** - Remove files not matching any recipient
+
+### System
+- ✅ **Comprehensive logging** - All activities logged to a sheet
+- ✅ **Simple UI** - Custom menu in Google Sheets for easy access
+- ✅ **Config sheet** - Easy configuration management
 
 ## Installation
 
@@ -28,6 +39,7 @@ This Google Apps Script application allows you to send personalized email campai
    - `appsscript.json`
    - `Code.gs`
    - `Config.gs`
+   - `DocumentGenerator.gs`
    - `TemplateParser.gs`
    - `RecipientManager.gs`
    - `EmailSender.gs`
@@ -111,12 +123,44 @@ The Team
 1. Click **Email Campaign → View Statistics**
 2. See recipient counts, log statistics, and quota information
 
+### Generate Personalized Documents
+
+1. Click **Email Campaign → Create All Documents**
+2. System will create a personalized Google Doc for each recipient without a Doc ID
+3. Only recipients with all required template fields filled will be processed
+4. Documents are saved to your configured Output Folder
+5. Doc IDs are automatically tracked in the Recipients sheet
+
+**Note:** The system automatically detects which fields are required by scanning your template document. Only fields that appear as `{{FieldName}}` in the template need to be filled.
+
+### Regenerate All Documents
+
+1. Click **Email Campaign → Regenerate All Documents**
+2. Recreates documents for ALL recipients, overwriting existing ones
+3. Useful after updating your template
+4. PDF IDs are automatically cleared to maintain synchronization
+
+### Generate PDFs
+
+1. Click **Email Campaign → Generate All PDFs**
+2. Converts documents to PDF format for recipients with Doc IDs
+3. PDFs are saved to your configured PDF Folder
+4. PDF IDs are tracked in the Recipients sheet
+
+### Clean Up Orphan Files
+
+1. Click **Email Campaign → Advanced → Delete Orphan Files**
+2. Removes files from Drive folders that don't match any recipient
+3. Files are moved to trash (recoverable for 30 days)
+4. Useful for cleaning up after data changes
+
 ## File Structure
 
 ```
 /
 ├── Code.gs              # Main entry point, system tests, sample data
-├── Config.gs            # Configuration management using Script Properties
+├── Config.gs            # Configuration management (Config sheet)
+├── DocumentGenerator.gs # Document & PDF generation with validation
 ├── TemplateParser.gs    # Template parsing and placeholder replacement
 ├── RecipientManager.gs  # Recipient list management and validation
 ├── EmailSender.gs       # Email sending logic using GmailApp
@@ -127,11 +171,20 @@ The Team
 
 ## How It Works
 
-1. **Template Parsing**: Reads your Google Doc template and extracts content with basic HTML formatting
+### Document Generation
+1. **Template Analysis**: Scans your Google Doc template for `{{FieldName}}` placeholders
+2. **Smart Validation**: Only validates fields that appear in your template (optional fields can be empty)
+3. **Document Creation**: Creates a personalized copy of the template for each recipient
+4. **Placeholder Replacement**: Replaces all `{{placeholders}}` with actual recipient data
+5. **PDF Export**: Optionally converts documents to PDF format
+6. **Tracking**: Updates Doc ID and PDF ID columns, logs all activities
+
+### Email Campaign
+1. **Template Parsing**: Reads your Google Doc template and extracts content with HTML formatting
 2. **Recipient Loading**: Reads recipients from your Google Sheet with all their data
 3. **Personalization**: Replaces `{{placeholders}}` with actual recipient data
 4. **Sending**: Uses Gmail API to send personalized emails to each recipient
-5. **Tracking**: Updates status in sheet and logs all activities
+5. **Status Tracking**: Updates status column and logs all email activities
 
 ## Troubleshooting
 
@@ -157,6 +210,19 @@ The Team
   - Google Workspace: 1,500 emails/day
 - Wait 24 hours for quota to reset
 - Use **Email Campaign → View Statistics** to check remaining quota
+
+### "Missing required fields" Error
+- The system scans your template for `{{FieldName}}` placeholders
+- Only fields that appear in the template are required
+- Check which fields are mentioned in your template document
+- Ensure those exact fields are filled in your Recipients sheet
+- Field names are case-sensitive (e.g., `{{Name}}` ≠ `{{name}}`)
+
+### Document Generation Issues
+- **Output Folder not configured**: Set Output Folder ID in Config sheet
+- **PDF Folder not configured**: Set PDF Folder ID in Config sheet (optional for PDFs)
+- **No pending recipients**: All recipients already have Doc IDs - use "Regenerate All" or clear Doc IDs
+- **Permission denied**: Ensure you have write access to the output folders
 
 ## Testing
 

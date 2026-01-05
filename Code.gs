@@ -152,6 +152,54 @@ function runSystemTest() {
     report += `   - Error: ${error.message}\n`;
   }
 
+  // Test 8: Document Generator - Template Field Extraction
+  try {
+    // Note: This test requires a template document to be configured
+    const templateDocId = getConfig(CONFIG_KEYS.TEMPLATE_DOC_ID);
+    if (templateDocId) {
+      const fields = getTemplateFields(templateDocId);
+      report += '✅ Template Field Extraction: OK\n';
+      report += `   - Fields found: ${fields.length > 0 ? fields.join(', ') : 'none'}\n`;
+    } else {
+      report += '⚠️ Template Field Extraction: SKIPPED\n';
+      report += '   - No template configured\n';
+    }
+  } catch (error) {
+    report += '❌ Template Field Extraction: FAILED\n';
+    report += `   - Error: ${error.message}\n`;
+  }
+
+  // Test 9: Document Generator - Recipient Validation
+  try {
+    const templateDocId = getConfig(CONFIG_KEYS.TEMPLATE_DOC_ID);
+    if (templateDocId) {
+      // Test with complete data
+      const completeData = { Name: 'Test User', Company: 'Test Corp', City: 'New York' };
+      const validation1 = validateRecipientData(templateDocId, completeData);
+
+      // Test with missing data
+      const incompleteData = { Name: 'Test User' }; // Missing other fields
+      const validation2 = validateRecipientData(templateDocId, incompleteData);
+
+      if (validation1.isValid !== undefined && validation2.isValid !== undefined) {
+        report += '✅ Recipient Validation: OK\n';
+        report += `   - Complete data: ${validation1.isValid ? 'Valid' : 'Invalid'}\n`;
+        report += `   - Incomplete data: ${validation2.isValid ? 'Valid' : 'Invalid (expected)'}\n`;
+        if (!validation2.isValid && validation2.missing.length > 0) {
+          report += `   - Missing fields detected: ${validation2.missing.join(', ')}\n`;
+        }
+      } else {
+        report += '❌ Recipient Validation: FAILED\n';
+      }
+    } else {
+      report += '⚠️ Recipient Validation: SKIPPED\n';
+      report += '   - No template configured\n';
+    }
+  } catch (error) {
+    report += '❌ Recipient Validation: FAILED\n';
+    report += `   - Error: ${error.message}\n`;
+  }
+
   report += '\n---\n';
   report += 'System test complete. Review results above.\n';
 

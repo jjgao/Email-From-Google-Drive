@@ -1,6 +1,16 @@
 /**
  * Document Generator
- * Creates personalized Google Docs from template for each recipient
+ * Creates personalized Google Docs and PDFs from templates for each recipient
+ *
+ * Features:
+ * - Smart template-based validation (only validates fields used in template)
+ * - Personalized document generation from Google Doc templates
+ * - PDF export from generated documents
+ * - Incremental and full regeneration support
+ * - Orphan file cleanup utilities
+ * - Comprehensive logging of all operations
+ *
+ * @fileoverview Document and PDF generation module
  */
 
 /**
