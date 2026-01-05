@@ -162,8 +162,13 @@ function createAllDocuments() {
     throw new Error(`Missing required configuration: ${validation.missing.join(', ')}`);
   }
 
-  const templateDocId = getConfig(CONFIG_KEYS.TEMPLATE_DOC_ID);
+  const templateDocId = getConfig(CONFIG_KEYS.PDF_TEMPLATE_DOC_ID);
   const folderId = getConfig(CONFIG_KEYS.OUTPUT_FOLDER_ID);
+
+  if (!templateDocId) {
+    throw new Error('PDF Template Document ID not configured. Please set it in the Config sheet to generate documents.');
+  }
+
   const recipients = getPendingRecipients();
 
   if (recipients.length === 0) {
@@ -218,9 +223,13 @@ function createTestDocument() {
     throw new Error(`Missing required configuration: ${validation.missing.join(', ')}`);
   }
 
-  const templateDocId = getConfig(CONFIG_KEYS.TEMPLATE_DOC_ID);
+  const templateDocId = getConfig(CONFIG_KEYS.PDF_TEMPLATE_DOC_ID);
   const folderId = getConfig(CONFIG_KEYS.OUTPUT_FOLDER_ID);
   const testEmail = getConfig(CONFIG_KEYS.TEST_EMAIL);
+
+  if (!templateDocId) {
+    throw new Error('PDF Template Document ID not configured. Please set it in the Config sheet to generate documents.');
+  }
 
   // Get first recipient as sample data
   const recipients = getAllRecipients();
@@ -511,8 +520,13 @@ function regenerateAllDocuments() {
     throw new Error(`Missing required configuration: ${validation.missing.join(', ')}`);
   }
 
-  const templateDocId = getConfig(CONFIG_KEYS.TEMPLATE_DOC_ID);
+  const templateDocId = getConfig(CONFIG_KEYS.PDF_TEMPLATE_DOC_ID);
   const folderId = getConfig(CONFIG_KEYS.OUTPUT_FOLDER_ID);
+
+  if (!templateDocId) {
+    throw new Error('PDF Template Document ID not configured. Please set it in the Config sheet to generate documents.');
+  }
+
   const recipients = getAllRecipientsFormatted();
 
   if (recipients.length === 0) {

@@ -63,13 +63,15 @@ Create a sheet named "Recipients" with the following columns:
 
 **Or** run the `createSampleRecipientSheet()` function from the Apps Script editor to create a sample sheet automatically.
 
-### 3. Create Email Template
+### 3. Create Templates
 
-1. Create a new Google Doc
-2. Write your email template using HTML formatting
+#### Email Template (Required)
+
+1. Create a new Google Doc for your email body
+2. Write your email content using basic HTML formatting
 3. Use `{{FieldName}}` for placeholders (must match column names in your sheet)
 
-Example template:
+Example email template:
 ```
 Hi {{Name}},
 
@@ -82,19 +84,49 @@ The Team
 ```
 
 4. Copy the Document ID from the URL:
-   `https://docs.google.com/document/d/DOCUMENT_ID_HERE/edit`
+   `https://docs.google.com/document/d/EMAIL_TEMPLATE_ID/edit`
+
+#### PDF Template (Optional)
+
+If you want to generate personalized PDF documents to attach to emails:
+
+1. Create a separate Google Doc for your PDF content
+2. Format it as you want the PDF to appear (letterhead, contract, invoice, etc.)
+3. Use `{{FieldName}}` for placeholders
+
+Example PDF template:
+```
+Dear {{Name}},
+
+This letter confirms your registration with {{Company}}.
+
+Address: {{Street}}, {{City}}, {{State}} {{ZIP}}
+
+Thank you for choosing us!
+
+Sincerely,
+Management
+```
+
+4. Copy the Document ID from the URL:
+   `https://docs.google.com/document/d/PDF_TEMPLATE_ID/edit`
+
+**Note:** The email template and PDF template are completely separate. The email template is used for the email body, while the PDF template is used to generate personalized PDFs that get attached to the emails.
 
 ## Configuration
 
 1. Open your Google Sheet
 2. Click **Email Campaign → Setup Configuration**
 3. Fill in the required fields:
-   - **Template Document ID** - ID from your Google Doc URL
+   - **Email Template Document ID** - ID for email body template (required)
+   - **PDF Template Document ID** - ID for PDF generation template (optional - leave empty if not using)
    - **Sender Name** - Name that appears as sender
    - **Reply-To Email** - Email for replies
    - **Test Email** - Your email for testing
    - **Email Subject** - Subject line (can use {{placeholders}})
    - **Recipient Sheet Name** - Name of sheet with recipients (default: "Recipients")
+   - **Output Folder ID** - Google Drive folder for generated documents (optional)
+   - **PDF Folder ID** - Google Drive folder for PDF files (optional)
 
 4. Click **Save Configuration**
 
@@ -212,20 +244,24 @@ To attach files to emails for specific recipients:
 
 ## How It Works
 
-### Document Generation
-1. **Template Analysis**: Scans your Google Doc template for `{{FieldName}}` placeholders
-2. **Smart Validation**: Only validates fields that appear in your template (optional fields can be empty)
-3. **Document Creation**: Creates a personalized copy of the template for each recipient
+### Document Generation (Optional - uses PDF Template)
+1. **Template Analysis**: Scans your PDF template Google Doc for `{{FieldName}}` placeholders
+2. **Smart Validation**: Only validates fields that appear in your PDF template (optional fields can be empty)
+3. **Document Creation**: Creates a personalized copy of the PDF template for each recipient
 4. **Placeholder Replacement**: Replaces all `{{placeholders}}` with actual recipient data
-5. **PDF Export**: Optionally converts documents to PDF format
+5. **PDF Export**: Converts generated documents to PDF format
 6. **Tracking**: Updates Doc ID and PDF ID columns, logs all activities
+7. **Auto-Attachment**: PDFs are automatically attached to emails when PDF ID exists
 
-### Email Campaign
-1. **Template Parsing**: Reads your Google Doc template and extracts content with HTML formatting
+### Email Campaign (uses Email Template)
+1. **Template Parsing**: Reads your email template Google Doc and extracts content with HTML formatting
 2. **Recipient Loading**: Reads recipients from your Google Sheet with all their data
-3. **Personalization**: Replaces `{{placeholders}}` with actual recipient data
-4. **Sending**: Uses Gmail API to send personalized emails to each recipient
-5. **Status Tracking**: Updates status column and logs all email activities
+3. **Personalization**: Replaces `{{placeholders}}` in the email body with actual recipient data
+4. **Attachment Handling**: Attaches PDFs (if generated) and any additional files specified
+5. **Sending**: Uses Gmail API to send personalized emails to each recipient
+6. **Status Tracking**: Updates status column and logs all email activities
+
+**Key Point**: Email template is for the email body content, PDF template is for generating attached documents. They are completely independent.
 
 ## Troubleshooting
 
