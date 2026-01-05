@@ -183,7 +183,7 @@ function runSystemTest() {
 
       if (validation1.isValid !== undefined && validation2.isValid !== undefined) {
         report += '✅ PDF Recipient Validation: OK\n';
-        report += `   - Complete data: ${validation1.isValid ? 'Valid' : 'Invalid'}\n';
+        report += `   - Complete data: ${validation1.isValid ? 'Valid' : 'Invalid'}\n`;
         report += `   - Incomplete data: ${validation2.isValid ? 'Valid' : 'Invalid (expected)'}\n`;
         if (!validation2.isValid && validation2.missing.length > 0) {
           report += `   - Missing fields detected: ${validation2.missing.join(', ')}\n`;
