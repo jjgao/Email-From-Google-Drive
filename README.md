@@ -6,7 +6,9 @@ Send personalized emails using templates from Google Docs and recipient data fro
 
 This Google Apps Script application allows you to send personalized email campaigns directly from Google Sheets. It uses Google Docs for email templates with placeholder support and provides a simple menu-based interface for non-technical users.
 
-## Features (MVP1)
+**Current Version: MVP1.1** - Separate Email and PDF Templates
+
+## Features (MVP1.1)
 
 ### Email Features
 - ✅ **Template-based emails** - Use Google Docs with `{{placeholder}}` syntax
@@ -309,7 +311,7 @@ Run the system test from Apps Script editor:
 3. Click **Run**
 4. Review the test report
 
-## Limitations (MVP1)
+## Limitations (MVP1.1)
 
 - ❌ No batch processing with delays (sends all at once)
 - ❌ No automatic retry for failed emails
@@ -318,6 +320,28 @@ Run the system test from Apps Script editor:
 - ❌ Basic HTML only (complex layouts not supported)
 
 These features will be added in future versions (MVP2, MVP3).
+
+## Version History
+
+### MVP1.1 - Separate Email and PDF Templates
+**Key Changes:**
+- **Split template configuration**: Separated single template into EMAIL_TEMPLATE_DOC_ID (required) and PDF_TEMPLATE_DOC_ID (optional)
+- **Independent templates**: Email template is used only for email body content, PDF template is used only for document/PDF generation
+- **Improved sample templates**: Added separate sample template creators for email and PDF templates
+- **Better recipient filtering**: Separated recipient selection logic for document creation vs email sending
+- **Enhanced validation**: PDF template validation is now optional - only required when generating documents
+
+**Migration from MVP1:**
+- Old `TEMPLATE_DOC_ID` needs to be split into two separate IDs
+- Email Template Document ID is required for sending emails
+- PDF Template Document ID is optional and only needed if generating personalized PDFs
+- Update configuration via **Email Campaign → Setup Configuration**
+
+### MVP1.0 - Core Email Sending
+- Initial release with basic email campaign functionality
+- Template-based personalization with {{placeholder}} syntax
+- Document and PDF generation capabilities
+- Status tracking and logging
 
 ## Support
 
