@@ -631,13 +631,13 @@ function createSampleEmailTemplateUI() {
     instructionsTitle.setForegroundColor('#666666');
 
     const instructions = [
-      '• Use {{FieldName}} for placeholders - field names must match your spreadsheet columns exactly',
-      '• Available fields from sample data: {{Name}}, {{Company}}, {{Street}}, {{City}}, {{State}}, {{ZIP}}, {{Email}}',
+      '• Use double braces around field names for placeholders (example: Name becomes { {Name} } without the spaces)',
+      '• Field names must match your spreadsheet column headers exactly (case-sensitive)',
       '• This template uses formal letter format with name and address at the top',
       '• You can add any custom fields by adding columns to your Recipients sheet',
       '• Basic formatting supported: bold, italic, underline, links',
       '• Keep formatting simple - complex layouts may not work',
-      '• Delete these instructions before using the template'
+      '• DELETE THESE INSTRUCTIONS before using the template - they contain placeholder examples that will cause errors'
     ];
 
     instructions.forEach(instruction => {
@@ -864,13 +864,12 @@ function createSamplePdfTemplateUI() {
 
     const instructions = [
       '• This is a PDF template - it generates personalized documents that get converted to PDF',
-      '• Use {{FieldName}} for placeholders - field names must match your spreadsheet columns exactly',
-      '• Available fields from sample data: {{Name}}, {{Company}}, {{Street}}, {{City}}, {{State}}, {{ZIP}}, {{Email}}',
+      '• Use double braces around field names for placeholders (example: Name becomes { {Name} } without the spaces)',
+      '• Field names must match your spreadsheet column headers exactly (case-sensitive)',
       '• This template creates a formal certificate/letter format suitable for PDFs',
       '• You can add any custom fields by adding columns to your Recipients sheet',
       '• Customize the header, body content, and layout to match your needs',
       '• This is separate from your email template - email template is for email body, PDF template is for attached documents',
-      '• Delete these instructions before using the template',
       '',
       'USAGE:',
       '1. Edit this template with your company information and desired content',
@@ -878,7 +877,9 @@ function createSamplePdfTemplateUI() {
       '3. Add it to the "PDF Template Document ID" field in your Config sheet',
       '4. Use "Create All Documents" to generate personalized docs',
       '5. Use "Generate All PDFs" to convert docs to PDFs',
-      '6. PDFs will automatically attach to emails when you send campaigns'
+      '6. PDFs will automatically attach to emails when you send campaigns',
+      '',
+      'IMPORTANT: DELETE THESE INSTRUCTIONS before using the template!'
     ];
 
     instructions.forEach(instruction => {
