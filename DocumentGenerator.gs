@@ -169,10 +169,10 @@ function createAllDocuments() {
     throw new Error('PDF Template Document ID not configured. Please set it in the Config sheet to generate documents.');
   }
 
-  const recipients = getPendingRecipients();
+  const recipients = getRecipientsForDocumentCreation();
 
   if (recipients.length === 0) {
-    throw new Error('No pending recipients found');
+    throw new Error('No recipients without documents found. All recipients already have Doc IDs.');
   }
 
   const results = {
