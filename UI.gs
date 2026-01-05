@@ -13,7 +13,8 @@ function onOpen() {
     // Setup & Configuration
     .addItem('⚙️ Open Config Sheet', 'openConfigSheetUI')
     .addItem('📋 Create Sample Data', 'createSampleDataUI')
-    .addItem('📝 Create Sample Template', 'createSampleTemplateUI')
+    .addItem('📧 Create Sample Email Template', 'createSampleEmailTemplateUI')
+    .addItem('📄 Create Sample PDF Template', 'createSamplePdfTemplateUI')
     .addSeparator()
     // Document Generation
     .addItem('📑 Create All Documents', 'createAllDocumentsUI')
@@ -547,16 +548,17 @@ function createSampleDataUI() {
 /**
  * Create sample email template document
  */
-function createSampleTemplateUI() {
+function createSampleEmailTemplateUI() {
   const ui = SpreadsheetApp.getUi();
 
   const response = ui.alert(
-    'Create Sample Template',
+    'Create Sample Email Template',
     'This will create a sample email template Google Doc.\n\n' +
     'The document will include:\n' +
     '• Example placeholder syntax\n' +
     '• Basic HTML formatting examples\n' +
     '• Template instructions\n\n' +
+    'This template is used for email body content.\n\n' +
     'Continue?',
     ui.ButtonSet.YES_NO
   );
@@ -693,6 +695,247 @@ function createSampleTemplateUI() {
 
   } catch (error) {
     ui.alert('Error', `Failed to create sample template:\n\n${error.message}`, ui.ButtonSet.OK);
+  }
+}
+
+/**
+ * Create sample PDF template document
+ */
+function createSamplePdfTemplateUI() {
+  const ui = SpreadsheetApp.getUi();
+
+  const response = ui.alert(
+    'Create Sample PDF Template',
+    'This will create a sample PDF template Google Doc.\n\n' +
+    'The document will include:\n' +
+    '• Formal document format (certificate/letter style)\n' +
+    '• Example placeholder syntax\n' +
+    '• Professional layout\n' +
+    '• Template instructions\n\n' +
+    'This template is used for generating personalized PDF documents.\n\n' +
+    'Continue?',
+    ui.ButtonSet.YES_NO
+  );
+
+  if (response !== ui.Button.YES) {
+    return;
+  }
+
+  try {
+    // Create a new Google Doc
+    const doc = DocumentApp.create('PDF Document Template - Sample');
+    const body = doc.getBody();
+
+    // Clear any default content
+    body.clear();
+
+    // Set page margins for formal document
+    body.setMarginTop(72);    // 1 inch
+    body.setMarginBottom(72);
+    body.setMarginLeft(72);
+    body.setMarginRight(72);
+
+    // Add letterhead/header section
+    const header = body.appendParagraph('YOUR COMPANY NAME');
+    header.setHeading(DocumentApp.ParagraphHeading.HEADING1);
+    header.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
+
+    const subheader = body.appendParagraph('Business Address • City, State ZIP • Phone • Email');
+    subheader.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
+    subheader.setFontSize(10);
+    subheader.setForegroundColor('#666666');
+
+    body.appendParagraph('');
+    body.appendParagraph('');
+
+    // Add horizontal line
+    const line1 = body.appendParagraph('═══════════════════════════════════════════════════');
+    line1.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
+    line1.setForegroundColor('#4285f4');
+
+    body.appendParagraph('');
+
+    // Add document title
+    const docTitle = body.appendParagraph('CERTIFICATE OF REGISTRATION');
+    docTitle.setHeading(DocumentApp.ParagraphHeading.HEADING2);
+    docTitle.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
+    docTitle.setBold(true);
+
+    body.appendParagraph('');
+    body.appendParagraph('');
+
+    // Add date (example using current date, but you could use a placeholder)
+    const datePara = body.appendParagraph('Date: [Current Date]');
+    datePara.setAlignment(DocumentApp.HorizontalAlignment.RIGHT);
+    datePara.setFontSize(10);
+
+    body.appendParagraph('');
+
+    // Add recipient information section
+    const recipientSection = body.appendParagraph('This certifies that:');
+    recipientSection.setBold(true);
+
+    body.appendParagraph('');
+
+    // Name with emphasis
+    const namePara = body.appendParagraph('{{Name}}');
+    namePara.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
+    namePara.setFontSize(16);
+    namePara.setBold(true);
+    namePara.setForegroundColor('#4285f4');
+
+    body.appendParagraph('');
+
+    // Company
+    const companyPara = body.appendParagraph('{{Company}}');
+    companyPara.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
+    companyPara.setFontSize(12);
+
+    body.appendParagraph('');
+
+    // Address block
+    body.appendParagraph('{{Street}}');
+    body.appendParagraph('{{City}}, {{State}} {{ZIP}}');
+
+    body.appendParagraph('');
+    body.appendParagraph('');
+
+    // Add body content
+    const bodyText = body.appendParagraph(
+      'has been successfully registered with our organization and is hereby granted ' +
+      'full membership privileges effective immediately. This registration confirms ' +
+      'compliance with all requirements and standards.'
+    );
+    bodyText.setAlignment(DocumentApp.HorizontalAlignment.JUSTIFY);
+    bodyText.setLineSpacing(1.5);
+
+    body.appendParagraph('');
+    body.appendParagraph('');
+
+    // Add benefits/details section
+    const benefitsTitle = body.appendParagraph('Membership Benefits:');
+    benefitsTitle.setBold(true);
+
+    body.appendParagraph('✓ Access to exclusive resources and materials');
+    body.appendParagraph('✓ Priority support and assistance');
+    body.appendParagraph('✓ Invitations to special events and webinars');
+    body.appendParagraph('✓ Networking opportunities with peers');
+
+    body.appendParagraph('');
+    body.appendParagraph('');
+
+    // Add contact info section
+    const contactTitle = body.appendParagraph('Questions or Assistance:');
+    contactTitle.setBold(true);
+
+    const contactText = body.appendParagraph(
+      'If you have any questions about your registration or need assistance, ' +
+      'please don\'t hesitate to contact us. We\'re here to help!'
+    );
+    contactText.setFontSize(10);
+
+    body.appendParagraph('');
+    body.appendParagraph('');
+
+    // Add signature line
+    body.appendParagraph('_________________________________');
+    body.appendParagraph('Authorized Signature');
+
+    body.appendParagraph('');
+
+    // Add footer line
+    const line2 = body.appendParagraph('═══════════════════════════════════════════════════');
+    line2.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
+    line2.setForegroundColor('#4285f4');
+
+    body.appendParagraph('');
+    body.appendParagraph('');
+
+    // Add separator before instructions
+    const separator = body.appendParagraph('─────────────────────────────────');
+    separator.setForegroundColor('#cccccc');
+    separator.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
+
+    // Add instructions section
+    body.appendParagraph('');
+    const instructionsTitle = body.appendParagraph('Template Instructions');
+    instructionsTitle.setHeading(DocumentApp.ParagraphHeading.HEADING2);
+    instructionsTitle.setForegroundColor('#666666');
+
+    const instructions = [
+      '• This is a PDF template - it generates personalized documents that get converted to PDF',
+      '• Use {{FieldName}} for placeholders - field names must match your spreadsheet columns exactly',
+      '• Available fields from sample data: {{Name}}, {{Company}}, {{Street}}, {{City}}, {{State}}, {{ZIP}}, {{Email}}',
+      '• This template creates a formal certificate/letter format suitable for PDFs',
+      '• You can add any custom fields by adding columns to your Recipients sheet',
+      '• Customize the header, body content, and layout to match your needs',
+      '• This is separate from your email template - email template is for email body, PDF template is for attached documents',
+      '• Delete these instructions before using the template',
+      '',
+      'USAGE:',
+      '1. Edit this template with your company information and desired content',
+      '2. Copy the Document ID from the URL',
+      '3. Add it to the "PDF Template Document ID" field in your Config sheet',
+      '4. Use "Create All Documents" to generate personalized docs',
+      '5. Use "Generate All PDFs" to convert docs to PDFs',
+      '6. PDFs will automatically attach to emails when you send campaigns'
+    ];
+
+    instructions.forEach(instruction => {
+      const para = body.appendParagraph(instruction);
+      para.setForegroundColor('#666666');
+      para.setFontSize(10);
+    });
+
+    // Save the document
+    doc.saveAndClose();
+
+    // Get the document ID and URL
+    const docId = doc.getId();
+    const docUrl = doc.getUrl();
+
+    // Ask if user wants to auto-populate Config sheet
+    const configResponse = ui.alert(
+      'Sample PDF Template Created!',
+      `Your sample PDF template has been created.\n\n` +
+      `Document ID: ${docId}\n\n` +
+      'Would you like to automatically add this template ID to your Config sheet?',
+      ui.ButtonSet.YES_NO
+    );
+
+    if (configResponse === ui.Button.YES) {
+      // Set the PDF template ID in config
+      setConfig(CONFIG_KEYS.PDF_TEMPLATE_DOC_ID, docId);
+
+      ui.alert(
+        'Success',
+        'Sample PDF template created and configured!\n\n' +
+        `Document ID has been added to your Config sheet.\n\n` +
+        'The template will open in a new tab. You can edit it as needed.\n\n' +
+        `Document URL: ${docUrl}`,
+        ui.ButtonSet.OK
+      );
+    } else {
+      ui.alert(
+        'Success',
+        'Sample PDF template created!\n\n' +
+        `Document ID: ${docId}\n\n` +
+        'Copy this ID to the "PDF Template Document ID" field in your Config sheet.\n\n' +
+        'The template will open in a new tab. You can edit it as needed.\n\n' +
+        `Document URL: ${docUrl}`,
+        ui.ButtonSet.OK
+      );
+    }
+
+    // Open the document in a new tab
+    const htmlOutput = HtmlService.createHtmlOutput(
+      `<script>window.open('${docUrl}', '_blank'); google.script.host.close();</script>`
+    ).setWidth(1).setHeight(1);
+
+    ui.showModalDialog(htmlOutput, 'Opening PDF Template...');
+
+  } catch (error) {
+    ui.alert('Error', `Failed to create sample PDF template:\n\n${error.message}`, ui.ButtonSet.OK);
   }
 }
 
