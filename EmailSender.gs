@@ -130,7 +130,7 @@ function sendTestEmail() {
       throw new Error(`Configuration incomplete. Missing: ${validation.missing.join(', ')}`);
     }
 
-    const templateDocId = getConfig(CONFIG_KEYS.TEMPLATE_DOC_ID);
+    const templateDocId = getConfig(CONFIG_KEYS.EMAIL_TEMPLATE_DOC_ID);
     const testEmail = getConfig(CONFIG_KEYS.TEST_EMAIL);
 
     // Get first recipient data or use sample data
@@ -185,7 +185,7 @@ function sendCampaign() {
       throw new Error(`Configuration incomplete. Missing: ${validation.missing.join(', ')}`);
     }
 
-    const templateDocId = getConfig(CONFIG_KEYS.TEMPLATE_DOC_ID);
+    const templateDocId = getConfig(CONFIG_KEYS.EMAIL_TEMPLATE_DOC_ID);
 
     // Ensure status column exists
     ensureStatusColumn();

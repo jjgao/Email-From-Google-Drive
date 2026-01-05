@@ -57,9 +57,15 @@ function showConfigDialog() {
     </style>
 
     <div class="field">
-      <label>Template Document ID:</label>
-      <input type="text" id="templateDocId" value="${currentConfig.TEMPLATE_DOC_ID || ''}" />
-      <div class="hint">Find in URL: docs.google.com/document/d/[DOCUMENT_ID]/edit</div>
+      <label>Email Template Document ID:</label>
+      <input type="text" id="emailTemplateDocId" value="${currentConfig.EMAIL_TEMPLATE_DOC_ID || ''}" />
+      <div class="hint">Template for email body - Find in URL: docs.google.com/document/d/[DOCUMENT_ID]/edit</div>
+    </div>
+
+    <div class="field">
+      <label>PDF Template Document ID (Optional):</label>
+      <input type="text" id="pdfTemplateDocId" value="${currentConfig.PDF_TEMPLATE_DOC_ID || ''}" />
+      <div class="hint">Template for generating personalized PDFs - Leave empty if not using PDF generation</div>
     </div>
 
     <div class="field">
@@ -96,7 +102,8 @@ function showConfigDialog() {
     <script>
       function saveConfig() {
         const config = {
-          TEMPLATE_DOC_ID: document.getElementById('templateDocId').value,
+          EMAIL_TEMPLATE_DOC_ID: document.getElementById('emailTemplateDocId').value,
+          PDF_TEMPLATE_DOC_ID: document.getElementById('pdfTemplateDocId').value,
           SENDER_NAME: document.getElementById('senderName').value,
           REPLY_TO_EMAIL: document.getElementById('replyToEmail').value,
           TEST_EMAIL: document.getElementById('testEmail').value,
@@ -654,12 +661,12 @@ function createSampleTemplateUI() {
     );
 
     if (configResponse === ui.Button.YES) {
-      // Set the template ID in config
-      setConfig(CONFIG_KEYS.TEMPLATE_DOC_ID, docId);
+      // Set the email template ID in config
+      setConfig(CONFIG_KEYS.EMAIL_TEMPLATE_DOC_ID, docId);
 
       ui.alert(
         'Success',
-        'Sample template created and configured!\n\n' +
+        'Sample email template created and configured!\n\n' +
         `Document ID has been added to your Config sheet.\n\n` +
         'The template will open in a new tab. You can edit it as needed.\n\n' +
         `Document URL: ${docUrl}`,

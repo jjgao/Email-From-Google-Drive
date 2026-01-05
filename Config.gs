@@ -4,7 +4,8 @@
  */
 
 const CONFIG_KEYS = {
-  TEMPLATE_DOC_ID: 'TEMPLATE_DOC_ID',
+  EMAIL_TEMPLATE_DOC_ID: 'EMAIL_TEMPLATE_DOC_ID',
+  PDF_TEMPLATE_DOC_ID: 'PDF_TEMPLATE_DOC_ID',
   OUTPUT_FOLDER_ID: 'OUTPUT_FOLDER_ID',
   PDF_FOLDER_ID: 'PDF_FOLDER_ID',
   RECIPIENT_SHEET_NAME: 'RECIPIENT_SHEET_NAME',
@@ -24,7 +25,8 @@ const DEFAULT_VALUES = {
 const CONFIG_SHEET_NAME = 'Config';
 
 const CONFIG_LABELS = {
-  TEMPLATE_DOC_ID: 'Template Document ID',
+  EMAIL_TEMPLATE_DOC_ID: 'Email Template Document ID',
+  PDF_TEMPLATE_DOC_ID: 'PDF Template Document ID',
   OUTPUT_FOLDER_ID: 'Output Folder ID',
   PDF_FOLDER_ID: 'PDF Folder ID',
   RECIPIENT_SHEET_NAME: 'Recipient Sheet Name',
@@ -36,7 +38,8 @@ const CONFIG_LABELS = {
 };
 
 const CONFIG_DESCRIPTIONS = {
-  TEMPLATE_DOC_ID: 'Google Doc ID for email template (from URL)',
+  EMAIL_TEMPLATE_DOC_ID: 'Google Doc ID for email body template (from URL) - required for sending emails',
+  PDF_TEMPLATE_DOC_ID: 'Google Doc ID for PDF document template (from URL) - optional, used to generate personalized PDFs',
   OUTPUT_FOLDER_ID: 'Google Drive Folder ID where generated docs will be saved',
   PDF_FOLDER_ID: 'Google Drive Folder ID where generated PDFs will be saved (optional)',
   RECIPIENT_SHEET_NAME: 'Name of sheet containing recipients',
@@ -138,8 +141,7 @@ function getAllConfig() {
  */
 function validateConfig() {
   const required = [
-    CONFIG_KEYS.TEMPLATE_DOC_ID,
-    CONFIG_KEYS.OUTPUT_FOLDER_ID,
+    CONFIG_KEYS.EMAIL_TEMPLATE_DOC_ID,
     CONFIG_KEYS.SENDER_NAME,
     CONFIG_KEYS.REPLY_TO_EMAIL,
     CONFIG_KEYS.TEST_EMAIL
@@ -249,8 +251,7 @@ function initializeConfigSheet(sheet) {
 
   // Highlight required fields
   const requiredKeys = [
-    CONFIG_KEYS.TEMPLATE_DOC_ID,
-    CONFIG_KEYS.OUTPUT_FOLDER_ID,
+    CONFIG_KEYS.EMAIL_TEMPLATE_DOC_ID,
     CONFIG_KEYS.SENDER_NAME,
     CONFIG_KEYS.REPLY_TO_EMAIL,
     CONFIG_KEYS.TEST_EMAIL
