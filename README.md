@@ -12,6 +12,9 @@ This Google Apps Script application allows you to send personalized email campai
 - ✅ **Template-based emails** - Use Google Docs with `{{placeholder}}` syntax
 - ✅ **Personalized content** - Replace placeholders with recipient data from sheets
 - ✅ **Basic HTML support** - Bold, italic, links, and headers in templates
+- ✅ **Auto-attach PDFs** - Automatically attach PDFs when PDF ID exists
+- ✅ **Multiple attachments** - Support for multiple file attachments per email
+- ✅ **One-click workflow** - Generate PDFs and send emails in single operation
 - ✅ **Test email capability** - Send test emails before launching campaigns
 - ✅ **Status tracking** - Track sent/failed status for each recipient
 - ✅ **Quota management** - Check available quota before sending
@@ -111,6 +114,44 @@ The Team
 4. Click **Yes** to send
 5. Wait for completion (progress shown in toast)
 6. Review the results dialog
+
+**Note:** PDFs are automatically attached to emails when a recipient has a PDF ID. Additional attachments can be specified in the "Attachment IDs" column.
+
+### One-Click Workflow: Generate PDFs & Send
+
+The fastest way to send emails with PDF attachments:
+
+1. Click **Email Campaign → ⚡ Generate PDFs & Send**
+2. System will:
+   - Generate PDFs for all recipients with documents (if not already generated)
+   - Send campaign emails with PDFs automatically attached
+3. Review confirmation dialog showing pending count
+4. Click **Yes** to execute the workflow
+5. View combined results for both PDF generation and email sending
+
+**Benefits:**
+- Single operation instead of two separate steps
+- Ensures PDFs are fresh and up-to-date
+- Perfect for recurring campaigns
+- Saves time and reduces errors
+
+### Adding File Attachments
+
+To attach files to emails for specific recipients:
+
+1. Get the Google Drive file ID(s) you want to attach
+   - Open the file in Google Drive
+   - Copy the ID from the URL: `drive.google.com/file/d/[FILE_ID]/view`
+2. In your Recipients sheet, find the "Attachment IDs" column
+3. Paste the file ID(s):
+   - Single file: `1abc123xyz`
+   - Multiple files: `1abc123xyz,2def456uvw,3ghi789rst` (comma-separated)
+4. When the email is sent, all specified files will be attached
+
+**Automatic PDF Attachment:**
+- If a recipient has a PDF ID, the PDF is automatically attached
+- No need to add the PDF ID to "Attachment IDs" column
+- "Attachment IDs" is for additional files beyond the main PDF
 
 ### View Logs
 

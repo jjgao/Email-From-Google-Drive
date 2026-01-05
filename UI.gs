@@ -24,6 +24,7 @@ function onOpen() {
     // Email Campaign
     .addItem('📧 Send Test Email', 'sendTestEmailUI')
     .addItem('🚀 Send Campaign', 'sendCampaignUI')
+    .addItem('⚡ Generate PDFs & Send', 'generatePdfsAndSendCampaignUI')
     .addSeparator()
     // Reports & Analytics
     .addItem('📊 View Logs', 'openLogSheet')
@@ -243,6 +244,106 @@ function sendCampaignUI() {
 }
 
 /**
+ * Generate PDFs and send campaign in one workflow (UI wrapper)
+ */
+function generatePdfsAndSendCampaignUI() {
+  const ui = SpreadsheetApp.getUi();
+
+  // Check configuration first
+  const validation = validateConfig();
+  if (!validation.isValid) {
+    ui.alert('Configuration Required', `Please configure the following:\n\n${validation.missing.join('\n')}`, ui.ButtonSet.OK);
+    return;
+  }
+
+  // Check PDF folder
+  const pdfFolderId = getConfig(CONFIG_KEYS.PDF_FOLDER_ID);
+  if (!pdfFolderId) {
+    ui.alert(
+      'PDF Folder Not Configured',
+      'This workflow requires PDF Folder ID to be configured.\n\nPlease set it in the Config sheet.',
+      ui.ButtonSet.OK
+    );
+    return;
+  }
+
+  // Get pending recipient count
+  try {
+    const summary = getRecipientSummary();
+
+    if (summary.pending === 0) {
+      ui.alert('No Pending Recipients', 'All emails have already been sent or there are no recipients.', ui.ButtonSet.OK);
+      return;
+    }
+
+    // Check quota
+    const quota = getQuotaInfo();
+    if (quota.remaining < summary.pending) {
+      ui.alert(
+        'Quota Warning',
+        `You have ${quota.remaining} emails remaining in your daily quota, but ${summary.pending} emails to send.\n\nPlease reduce recipients or wait until tomorrow.`,
+        ui.ButtonSet.OK
+      );
+      return;
+    }
+
+    // Confirm send
+    const response = ui.alert(
+      'Generate PDFs & Send Campaign',
+      `This will:\n` +
+      `1. Generate PDFs for ${summary.pending} recipient(s) with documents\n` +
+      `2. Send campaign emails with PDFs attached\n\n` +
+      `Quota remaining: ${quota.remaining}\n\n` +
+      `This action cannot be undone. Continue?`,
+      ui.ButtonSet.YES_NO
+    );
+
+    if (response === ui.Button.YES) {
+      // Show progress message
+      SpreadsheetApp.getActiveSpreadsheet().toast('Generating PDFs and sending emails...', 'Workflow Progress', -1);
+
+      const results = generatePdfsAndSendCampaign();
+
+      // Log summary
+      logCampaignSummary(results.campaign);
+
+      // Hide progress
+      SpreadsheetApp.getActiveSpreadsheet().toast('Complete!', 'Workflow Progress', 3);
+
+      // Show results
+      let message = `Workflow Complete!\n\n`;
+      message += `PDF GENERATION:\n`;
+      message += `Generated: ${results.pdfGeneration.success}\n`;
+      message += `Failed: ${results.pdfGeneration.failed}\n`;
+      message += `Skipped: ${results.pdfGeneration.skipped}\n\n`;
+
+      message += `EMAIL CAMPAIGN:\n`;
+      message += `Sent: ${results.campaign.success}\n`;
+      message += `Failed: ${results.campaign.failed}\n`;
+      message += `Total: ${results.campaign.total}\n`;
+
+      if (results.campaign.failed > 0) {
+        message += `\nFirst few errors:\n`;
+        const errorPreview = results.campaign.errors.slice(0, 3);
+        errorPreview.forEach(err => {
+          message += `- ${err.email}: ${err.error}\n`;
+        });
+
+        if (results.campaign.errors.length > 3) {
+          message += `\n(and ${results.campaign.errors.length - 3} more - check logs)`;
+        }
+      }
+
+      ui.alert('Workflow Results', message, ui.ButtonSet.OK);
+    }
+
+  } catch (error) {
+    SpreadsheetApp.getActiveSpreadsheet().toast('Error occurred', 'Workflow Progress', 3);
+    ui.alert('Error', `Workflow failed:\n\n${error.message}`, ui.ButtonSet.OK);
+  }
+}
+
+/**
  * Open log sheet
  */
 function openLogSheet() {
@@ -383,7 +484,7 @@ function createSampleDataUI() {
     }
 
     // Add headers
-    const headers = ['Email', 'Name', 'Company', 'Street', 'City', 'State', 'ZIP', 'Status', 'Doc ID', 'PDF ID'];
+    const headers = ['Email', 'Name', 'Company', 'Street', 'City', 'State', 'ZIP', 'Status', 'Doc ID', 'PDF ID', 'Attachment IDs'];
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
 
     // Format headers
@@ -395,9 +496,9 @@ function createSampleDataUI() {
     // Add sample data
     // Note: Third recipient has missing City field to test validation
     const sampleData = [
-      ['your-email@example.com', 'John Doe', 'Acme Inc', '123 Main Street', 'New York', 'NY', '10001', 'pending', '', ''],
-      ['another-email@example.com', 'Jane Smith', 'Tech Corp', '456 Oak Avenue', 'San Francisco', 'CA', '94102', 'pending', '', ''],
-      ['third-email@example.com', 'Bob Johnson', 'StartupXYZ', '789 Pine Road', '', 'TX', '73301', 'pending', '', '']
+      ['your-email@example.com', 'John Doe', 'Acme Inc', '123 Main Street', 'New York', 'NY', '10001', 'pending', '', '', ''],
+      ['another-email@example.com', 'Jane Smith', 'Tech Corp', '456 Oak Avenue', 'San Francisco', 'CA', '94102', 'pending', '', '', ''],
+      ['third-email@example.com', 'Bob Johnson', 'StartupXYZ', '789 Pine Road', '', 'TX', '73301', 'pending', '', '', '']
     ];
 
     sheet.getRange(2, 1, sampleData.length, headers.length).setValues(sampleData);
@@ -413,6 +514,7 @@ function createSampleDataUI() {
     sheet.setColumnWidth(8, 100); // Status
     sheet.setColumnWidth(9, 300); // Doc ID
     sheet.setColumnWidth(10, 300); // PDF ID
+    sheet.setColumnWidth(11, 350); // Attachment IDs
 
     // Freeze header row
     sheet.setFrozenRows(1);
@@ -425,6 +527,7 @@ function createSampleDataUI() {
       `Sample recipient sheet "${recipientSheetName}" created with 3 test recipients.\n\n` +
       'IMPORTANT: Please replace the sample email addresses with valid test emails before sending!\n\n' +
       'NOTE: The third recipient (Bob Johnson) has a missing City field to test validation. Document generation will skip this recipient if City is used in your template.\n\n' +
+      'TIP: Use the "Attachment IDs" column to attach additional files to emails (comma-separated Drive file IDs). PDFs are auto-attached when PDF ID exists.\n\n' +
       'You can edit the data directly in the sheet.',
       ui.ButtonSet.OK
     );
