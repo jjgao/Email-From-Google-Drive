@@ -1,0 +1,20 @@
+# Clasp (Google Apps Script) local configuration
+.clasp.json
+
+# Node modules (if using npm for development)
+node_modules/
+
+# IDE/Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment files
+.env
+.env.local
