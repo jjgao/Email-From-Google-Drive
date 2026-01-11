@@ -179,6 +179,7 @@ function processTable(table) {
 
 /**
  * Replace placeholders in template with recipient data
+ * Supports both {{FieldName}} and {{?FieldName}} (optional) syntax
  * @param {string} template - Template content with {{placeholder}} format
  * @param {Object} data - Key-value pairs for replacement
  * @returns {string} Content with placeholders replaced
@@ -186,20 +187,29 @@ function processTable(table) {
 function replacePlaceholders(template, data) {
   let result = template;
 
-  // Find all placeholders in format {{fieldname}}
-  const placeholderRegex = /\{\{(\w+)\}\}/g;
+  // Find all placeholders: {{fieldname}} and {{?fieldname}}
+  // Updated regex to handle field names with spaces and optional marker
+  const placeholderRegex = /\{\{(\??[\w\s]+)\}\}/g;
   const matches = template.match(placeholderRegex);
 
   if (matches) {
     for (const match of matches) {
       // Extract field name (remove {{ and }})
-      const fieldName = match.replace(/\{\{|\}\}/g, '');
+      let fieldName = match.replace(/\{\{|\}\}/g, '');
+
+      // Check if it's an optional field (starts with ?)
+      const isOptional = fieldName.startsWith('?');
+      if (isOptional) {
+        fieldName = fieldName.substring(1).trim();
+      }
 
       // Get value from data, use empty string if not found
       const value = data[fieldName] !== undefined ? data[fieldName] : '';
 
       // Replace all occurrences of this placeholder
-      result = result.replace(new RegExp(match.replace(/\{/g, '\\{').replace(/\}/g, '\\}'), 'g'), value);
+      // Escape special regex characters
+      const escapedMatch = match.replace(/[{}?]/g, '\\$&');
+      result = result.replace(new RegExp(escapedMatch, 'g'), value);
     }
   }
 

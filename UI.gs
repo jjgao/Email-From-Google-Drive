@@ -589,7 +589,7 @@ function createSampleEmailTemplateUI() {
 
     body.appendParagraph('{{Address1}}');
 
-    const address2Para = body.appendParagraph('{{Address2}}');
+    const address2Para = body.appendParagraph('{{?Address2}}');
 
     const cityStateZip = body.appendParagraph('{{City}}, {{State}} {{ZIP}}');
 
@@ -643,9 +643,10 @@ function createSampleEmailTemplateUI() {
 
     const instructions = [
       '• Use double braces around field names for placeholders (example: First Name becomes { {First Name} } without the spaces)',
+      '• Optional fields: Add a question mark for optional fields (example: { {?Address2} } without spaces) - empty values won\'t cause errors',
       '• Field names must match your spreadsheet column headers exactly (case-sensitive)',
       '• This template uses formal letter format with name and address at the top',
-      '• Sample fields: First Name, Last Name, Address1, Address2, City, State, ZIP',
+      '• Sample fields: First Name, Last Name, Address1, Address2 (optional), City, State, ZIP',
       '• You can add any custom fields by adding columns to your Recipients sheet',
       '• Basic formatting supported: bold, italic, underline, links',
       '• Keep formatting simple - complex layouts may not work',
@@ -803,7 +804,7 @@ function createSamplePdfTemplateUI() {
     address1Para.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
     address1Para.setFontSize(11);
 
-    const address2Para = body.appendParagraph('{{Address2}}');
+    const address2Para = body.appendParagraph('{{?Address2}}');
     address2Para.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
     address2Para.setFontSize(11);
 
@@ -879,8 +880,9 @@ function createSamplePdfTemplateUI() {
     const instructions = [
       '• This is a PDF template - it generates personalized documents that get converted to PDF',
       '• Use double braces around field names for placeholders (example: First Name becomes { {First Name} } without the spaces)',
+      '• Optional fields: Add a question mark for optional fields (example: { {?Address2} } without spaces) - empty values won\'t cause errors',
       '• Field names must match your spreadsheet column headers exactly (case-sensitive)',
-      '• Sample fields: First Name, Last Name, Address1, Address2, City, State, ZIP',
+      '• Sample fields: First Name, Last Name, Address1, Address2 (optional), City, State, ZIP',
       '• This template creates a formal certificate/letter format suitable for PDFs',
       '• You can add any custom fields by adding columns to your Recipients sheet',
       '• Customize the header, body content, and layout to match your needs',

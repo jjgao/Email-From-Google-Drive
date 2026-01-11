@@ -16,7 +16,7 @@
 /**
  * Extract all placeholder field names from template document
  * @param {string} templateDocId - Template document ID
- * @returns {Array<string>} Array of field names used in template
+ * @returns {Object} Object with requiredFields and optionalFields arrays
  */
 function getTemplateFields(templateDocId) {
   try {
@@ -24,19 +24,29 @@ function getTemplateFields(templateDocId) {
     const body = templateDoc.getBody();
     const text = body.getText();
 
-    // Find all {{FieldName}} patterns
-    const placeholderPattern = /\{\{([^}]+)\}\}/g;
-    const fields = new Set();
+    // Find all {{FieldName}} and {{?FieldName}} patterns
+    const placeholderPattern = /\{\{(\??[^}]+)\}\}/g;
+    const requiredFields = new Set();
+    const optionalFields = new Set();
 
     let match;
     while ((match = placeholderPattern.exec(text)) !== null) {
       const fieldName = match[1].trim();
-      // Skip optional marker if present (for future enhancement)
-      const cleanFieldName = fieldName.replace(/^\?/, '');
-      fields.add(cleanFieldName);
+
+      // Check if field is optional (starts with ?)
+      if (fieldName.startsWith('?')) {
+        const cleanFieldName = fieldName.substring(1).trim();
+        optionalFields.add(cleanFieldName);
+      } else {
+        requiredFields.add(fieldName);
+      }
     }
 
-    return Array.from(fields);
+    return {
+      requiredFields: Array.from(requiredFields),
+      optionalFields: Array.from(optionalFields),
+      allFields: Array.from(new Set([...requiredFields, ...optionalFields]))
+    };
   } catch (error) {
     throw new Error(`Failed to read template: ${error.message}`);
   }
@@ -44,15 +54,17 @@ function getTemplateFields(templateDocId) {
 
 /**
  * Validate that recipient has all required fields filled (based on template)
+ * Optional fields (marked with {{?FieldName}}) are not validated
  * @param {string} templateDocId - Template document ID
  * @param {Object} recipientData - Recipient data
  * @returns {Object} Object with isValid boolean and missing array
  */
 function validateRecipientData(templateDocId, recipientData) {
-  const requiredFields = getTemplateFields(templateDocId);
+  const templateFields = getTemplateFields(templateDocId);
   const missing = [];
 
-  for (const fieldName of requiredFields) {
+  // Only validate required fields (not optional ones)
+  for (const fieldName of templateFields.requiredFields) {
     const value = recipientData[fieldName];
     if (!value || value.toString().trim() === '') {
       missing.push(fieldName);
@@ -61,7 +73,9 @@ function validateRecipientData(templateDocId, recipientData) {
 
   return {
     isValid: missing.length === 0,
-    missing: missing
+    missing: missing,
+    requiredFields: templateFields.requiredFields,
+    optionalFields: templateFields.optionalFields
   };
 }
 
@@ -129,6 +143,7 @@ function generateDocumentName(recipientData) {
 
 /**
  * Replace placeholders in the entire document
+ * Supports both {{FieldName}} and {{?FieldName}} (optional) syntax
  * @param {GoogleAppsScript.Document.Body} body - Document body
  * @param {Object} data - Replacement data
  */
@@ -140,15 +155,19 @@ function replaceInDocument(body, data) {
       continue;
     }
 
-    const placeholder = `{{${key}}}`;
     const value = data[key] || '';
 
-    // Escape special regex characters in the placeholder
-    // {{Name}} needs to be escaped as \{\{Name\}\}
-    const escapedPlaceholder = placeholder.replace(/[{}]/g, '\\$&');
+    // Replace both {{FieldName}} and {{?FieldName}} patterns
+    const requiredPlaceholder = `{{${key}}}`;
+    const optionalPlaceholder = `{{?${key}}}`;
+
+    // Escape special regex characters in the placeholders
+    const escapedRequired = requiredPlaceholder.replace(/[{}]/g, '\\$&');
+    const escapedOptional = optionalPlaceholder.replace(/[{}?]/g, '\\$&');
 
     // Replace in body text
-    body.replaceText(escapedPlaceholder, value);
+    body.replaceText(escapedRequired, value);
+    body.replaceText(escapedOptional, value);
   }
 }
 

@@ -159,7 +159,8 @@ function runSystemTest() {
     if (templateDocId) {
       const fields = getTemplateFields(templateDocId);
       report += '✅ PDF Template Field Extraction: OK\n';
-      report += `   - Fields found: ${fields.length > 0 ? fields.join(', ') : 'none'}\n`;
+      report += `   - Required fields: ${fields.requiredFields.length > 0 ? fields.requiredFields.join(', ') : 'none'}\n`;
+      report += `   - Optional fields: ${fields.optionalFields.length > 0 ? fields.optionalFields.join(', ') : 'none'}\n`;
     } else {
       report += '⚠️ PDF Template Field Extraction: SKIPPED\n';
       report += '   - No PDF template configured\n';
