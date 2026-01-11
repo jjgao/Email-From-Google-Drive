@@ -238,7 +238,7 @@ function createSampleRecipientSheet() {
   }
 
   // Add headers
-  const headers = ['Email', 'Name', 'Company', 'Status'];
+  const headers = ['Email', 'First Name', 'Last Name', 'Address1', 'Address2', 'City', 'State', 'ZIP', 'Status'];
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
 
   // Format headers
@@ -249,18 +249,23 @@ function createSampleRecipientSheet() {
 
   // Add sample data
   const sampleData = [
-    ['john@example.com', 'John Doe', 'Acme Inc', 'pending'],
-    ['jane@example.com', 'Jane Smith', 'Tech Corp', 'pending'],
-    ['bob@example.com', 'Bob Johnson', 'StartupXYZ', 'pending']
+    ['john@example.com', 'John', 'Doe', '123 Main Street', 'Apt 4B', 'New York', 'NY', '10001', 'pending'],
+    ['jane@example.com', 'Jane', 'Smith', '456 Oak Avenue', '', 'Los Angeles', 'CA', '90001', 'pending'],
+    ['bob@example.com', 'Bob', 'Johnson', '789 Pine Road', 'Suite 200', 'Chicago', 'IL', '60601', 'pending']
   ];
 
   sheet.getRange(2, 1, sampleData.length, headers.length).setValues(sampleData);
 
   // Set column widths
   sheet.setColumnWidth(1, 200); // Email
-  sheet.setColumnWidth(2, 150); // Name
-  sheet.setColumnWidth(3, 150); // Company
-  sheet.setColumnWidth(4, 100); // Status
+  sheet.setColumnWidth(2, 120); // First Name
+  sheet.setColumnWidth(3, 120); // Last Name
+  sheet.setColumnWidth(4, 180); // Address1
+  sheet.setColumnWidth(5, 100); // Address2
+  sheet.setColumnWidth(6, 120); // City
+  sheet.setColumnWidth(7, 60);  // State
+  sheet.setColumnWidth(8, 80);  // ZIP
+  sheet.setColumnWidth(9, 100); // Status
 
   // Freeze header row
   sheet.setFrozenRows(1);
