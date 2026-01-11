@@ -492,7 +492,7 @@ function createSampleDataUI() {
     }
 
     // Add headers
-    const headers = ['Email', 'First Name', 'Last Name', 'Address1', 'Address2', 'City', 'State', 'ZIP', 'Status', 'Doc ID', 'PDF ID', 'Attachment IDs'];
+    const headers = ['Email', 'First Name', 'Last Name', 'Address1', 'Address2', 'City', 'State', 'ZIP', 'Filename', 'Status', 'Doc ID', 'PDF ID', 'Attachment IDs'];
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
 
     // Format headers
@@ -503,10 +503,11 @@ function createSampleDataUI() {
 
     // Add sample data
     // Note: Third recipient has missing City field to test validation
+    // Note: First recipient has custom filename
     const sampleData = [
-      ['your-email@example.com', 'John', 'Doe', '123 Main Street', 'Apt 4B', 'New York', 'NY', '10001', 'pending', '', '', ''],
-      ['another-email@example.com', 'Jane', 'Smith', '456 Oak Avenue', '', 'Los Angeles', 'CA', '90001', 'pending', '', '', ''],
-      ['third-email@example.com', 'Bob', 'Johnson', '789 Pine Road', 'Suite 200', '', 'IL', '60601', 'pending', '', '', '']
+      ['your-email@example.com', 'John', 'Doe', '123 Main Street', 'Apt 4B', 'New York', 'NY', '10001', 'Custom Doc Name', 'pending', '', '', ''],
+      ['another-email@example.com', 'Jane', 'Smith', '456 Oak Avenue', '', 'Los Angeles', 'CA', '90001', '', 'pending', '', '', ''],
+      ['third-email@example.com', 'Bob', 'Johnson', '789 Pine Road', 'Suite 200', '', 'IL', '60601', '', 'pending', '', '', '']
     ];
 
     sheet.getRange(2, 1, sampleData.length, headers.length).setValues(sampleData);
@@ -520,10 +521,11 @@ function createSampleDataUI() {
     sheet.setColumnWidth(6, 120); // City
     sheet.setColumnWidth(7, 60);  // State
     sheet.setColumnWidth(8, 80);  // ZIP
-    sheet.setColumnWidth(9, 100); // Status
-    sheet.setColumnWidth(10, 300); // Doc ID
-    sheet.setColumnWidth(11, 300); // PDF ID
-    sheet.setColumnWidth(12, 350); // Attachment IDs
+    sheet.setColumnWidth(9, 200); // Filename
+    sheet.setColumnWidth(10, 100); // Status
+    sheet.setColumnWidth(11, 300); // Doc ID
+    sheet.setColumnWidth(12, 300); // PDF ID
+    sheet.setColumnWidth(13, 350); // Attachment IDs
 
     // Freeze header row
     sheet.setFrozenRows(1);
@@ -536,8 +538,9 @@ function createSampleDataUI() {
       `Sample recipient sheet "${recipientSheetName}" created with 3 test recipients.\n\n` +
       'IMPORTANT: Please replace the sample email addresses with valid test emails before sending!\n\n' +
       'NOTE: The third recipient (Bob Johnson) has a missing City field to test validation. Document generation will skip this recipient if City is used in your template.\n\n' +
+      'TIP: Use the "Filename" column to customize document names per recipient (overrides template config).\n\n' +
       'TIP: Use the "Attachment IDs" column to attach additional files to emails (comma-separated Drive file IDs). PDFs are auto-attached when PDF ID exists.\n\n' +
-      'Fields included: First Name, Last Name, Address1, Address2, City, State, ZIP\n\n' +
+      'Fields included: First Name, Last Name, Address1, Address2, City, State, ZIP, Filename (optional)\n\n' +
       'You can edit the data directly in the sheet.',
       ui.ButtonSet.OK
     );

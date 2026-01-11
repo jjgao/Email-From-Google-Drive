@@ -131,12 +131,49 @@ function createPersonalizedDocument(templateDocId, recipientData, folderId) {
 
 /**
  * Generate document name from recipient data
+ * Supports:
+ * 1. Custom "Filename" column in recipient sheet (highest priority)
+ * 2. DOCUMENT_NAME_TEMPLATE config with {{placeholders}}
+ * 3. Fallback to "Name - Date" format
  * @param {Object} recipientData - Recipient data
  * @returns {string} Document name
  */
 function generateDocumentName(recipientData) {
-  // Use Name if available, otherwise use Email
-  const identifier = recipientData.Name || recipientData.Email || 'Document';
+  // Priority 1: Check if recipient has a custom filename specified
+  if (recipientData.Filename && recipientData.Filename.toString().trim() !== '') {
+    return recipientData.Filename.toString().trim();
+  }
+
+  // Priority 2: Use template from config with placeholder replacement
+  try {
+    const template = getConfig(CONFIG_KEYS.DOCUMENT_NAME_TEMPLATE);
+    if (template && template.trim() !== '') {
+      // Use replacePlaceholders from TemplateParser to support {{Field}} syntax
+      const name = replacePlaceholders(template, recipientData);
+      // Add timestamp if not already in template
+      if (!template.includes('{{') || name.trim() === '') {
+        // Template didn't have placeholders or resulted in empty string
+        throw new Error('Invalid template');
+      }
+      return name.trim();
+    }
+  } catch (error) {
+    // Fall through to default behavior
+  }
+
+  // Priority 3: Fallback to default format
+  // Try to use First Name + Last Name, then Name, then Email
+  let identifier = '';
+  if (recipientData['First Name'] || recipientData['Last Name']) {
+    const firstName = recipientData['First Name'] || '';
+    const lastName = recipientData['Last Name'] || '';
+    identifier = `${lastName}, ${firstName}`.replace(/, $/, '').replace(/^, /, '');
+  } else if (recipientData.Name) {
+    identifier = recipientData.Name;
+  } else {
+    identifier = recipientData.Email || 'Document';
+  }
+
   const timestamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
   return `${identifier} - ${timestamp}`;
 }

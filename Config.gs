@@ -13,13 +13,15 @@ const CONFIG_KEYS = {
   SENDER_NAME: 'SENDER_NAME',
   REPLY_TO_EMAIL: 'REPLY_TO_EMAIL',
   EMAIL_SUBJECT: 'EMAIL_SUBJECT',
-  TEST_EMAIL: 'TEST_EMAIL'
+  TEST_EMAIL: 'TEST_EMAIL',
+  DOCUMENT_NAME_TEMPLATE: 'DOCUMENT_NAME_TEMPLATE'
 };
 
 const DEFAULT_VALUES = {
   RECIPIENT_SHEET_NAME: 'Recipients',
   LOG_SHEET_NAME: 'Email Logs',
-  EMAIL_SUBJECT: 'Message from {{Name}}'
+  EMAIL_SUBJECT: 'Message from {{Name}}',
+  DOCUMENT_NAME_TEMPLATE: '{{Last Name}}, {{First Name}}'
 };
 
 const CONFIG_SHEET_NAME = 'Config';
@@ -34,7 +36,8 @@ const CONFIG_LABELS = {
   SENDER_NAME: 'Sender Name',
   REPLY_TO_EMAIL: 'Reply-To Email',
   EMAIL_SUBJECT: 'Email Subject',
-  TEST_EMAIL: 'Test Email'
+  TEST_EMAIL: 'Test Email',
+  DOCUMENT_NAME_TEMPLATE: 'Document Name Template'
 };
 
 const CONFIG_DESCRIPTIONS = {
@@ -47,7 +50,8 @@ const CONFIG_DESCRIPTIONS = {
   SENDER_NAME: 'Display name that appears as sender',
   REPLY_TO_EMAIL: 'Email address for replies',
   EMAIL_SUBJECT: 'Subject line (can use {{placeholders}})',
-  TEST_EMAIL: 'Your email address for testing'
+  TEST_EMAIL: 'Your email address for testing',
+  DOCUMENT_NAME_TEMPLATE: 'Template for generated document filenames (use {{placeholders}}). Can be overridden by "Filename" column in Recipients sheet.'
 };
 
 /**
