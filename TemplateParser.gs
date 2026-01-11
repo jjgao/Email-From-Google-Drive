@@ -178,6 +178,44 @@ function processTable(table) {
 }
 
 /**
+ * Clean up orphaned punctuation and whitespace after placeholder replacement
+ * Handles cases like ", State ZIP" → "State ZIP" when City is empty
+ * @param {string} text - Text with potential orphaned punctuation
+ * @returns {string} Cleaned text
+ */
+function cleanupOrphanedPunctuation(text) {
+  let result = text;
+
+  // Remove leading commas and spaces at the start of lines or after newlines
+  // Example: "\n, CA 90001" → "\nCA 90001"
+  result = result.replace(/^[\s,]+/gm, '');
+
+  // Remove orphaned commas followed by comma (duplicate commas)
+  // Example: "City, , State" → "City, State"
+  result = result.replace(/,\s*,/g, ',');
+
+  // Remove leading comma+space at the start of a word
+  // Example: ", State" → "State"
+  result = result.replace(/,\s+(?=[A-Z])/g, '');
+
+  // Remove trailing commas before newlines or end of string
+  // Example: "Address1,\n" → "Address1\n"
+  result = result.replace(/,\s*$/gm, '');
+
+  // Collapse multiple spaces into single space
+  // Example: "State  ZIP" → "State ZIP"
+  result = result.replace(/  +/g, ' ');
+
+  // Remove lines that are only whitespace or punctuation
+  result = result.replace(/^[\s,;.]+$/gm, '');
+
+  // Remove multiple consecutive newlines (more than 2)
+  result = result.replace(/\n{3,}/g, '\n\n');
+
+  return result;
+}
+
+/**
  * Replace placeholders in template with recipient data
  * Supports both {{FieldName}} and {{?FieldName}} (optional) syntax
  * @param {string} template - Template content with {{placeholder}} format
@@ -212,6 +250,9 @@ function replacePlaceholders(template, data) {
       result = result.replace(new RegExp(escapedMatch, 'g'), value);
     }
   }
+
+  // Clean up orphaned punctuation from empty optional fields
+  result = cleanupOrphanedPunctuation(result);
 
   return result;
 }

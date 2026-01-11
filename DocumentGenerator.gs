@@ -142,6 +142,30 @@ function generateDocumentName(recipientData) {
 }
 
 /**
+ * Clean up orphaned punctuation in Google Doc after placeholder replacement
+ * @param {GoogleAppsScript.Document.Body} body - Document body
+ */
+function cleanupDocumentPunctuation(body) {
+  // Remove leading commas and spaces at the start of paragraphs
+  body.replaceText('^[\\s,]+', '');
+
+  // Remove orphaned commas (duplicate commas)
+  body.replaceText(',\\s*,', ',');
+
+  // Remove leading comma+space patterns
+  body.replaceText(',\\s+(?=[A-Z])', '');
+
+  // Remove trailing commas at end of paragraphs
+  body.replaceText(',\\s*$', '');
+
+  // Collapse multiple spaces
+  body.replaceText('  +', ' ');
+
+  // Remove paragraphs that are only whitespace or punctuation
+  body.replaceText('^[\\s,;.]+$', '');
+}
+
+/**
  * Replace placeholders in the entire document
  * Supports both {{FieldName}} and {{?FieldName}} (optional) syntax
  * @param {GoogleAppsScript.Document.Body} body - Document body
@@ -169,6 +193,9 @@ function replaceInDocument(body, data) {
     body.replaceText(escapedRequired, value);
     body.replaceText(escapedOptional, value);
   }
+
+  // Clean up orphaned punctuation from empty optional fields
+  cleanupDocumentPunctuation(body);
 }
 
 /**
