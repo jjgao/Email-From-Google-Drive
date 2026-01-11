@@ -180,6 +180,7 @@ function generateDocumentName(recipientData) {
 
 /**
  * Clean up orphaned punctuation in Google Doc after placeholder replacement
+ * Note: Google Apps Script's replaceText() doesn't support lookahead assertions
  * @param {GoogleAppsScript.Document.Body} body - Document body
  */
 function cleanupDocumentPunctuation(body) {
@@ -188,9 +189,6 @@ function cleanupDocumentPunctuation(body) {
 
   // Remove orphaned commas (duplicate commas)
   body.replaceText(',\\s*,', ',');
-
-  // Remove leading comma+space patterns
-  body.replaceText(',\\s+(?=[A-Z])', '');
 
   // Remove trailing commas at end of paragraphs
   body.replaceText(',\\s*$', '');
