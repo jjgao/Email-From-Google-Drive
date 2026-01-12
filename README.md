@@ -6,7 +6,7 @@ Send personalized emails using templates from Google Docs and recipient data fro
 
 This Google Apps Script application allows you to send personalized email campaigns directly from Google Sheets. It uses Google Docs for email templates with placeholder support and provides a simple menu-based interface for non-technical users.
 
-**Current Version: MVP1.1** - Separate Email and PDF Templates
+**Current Version: 0.2.0** - Enhanced Filename Generation & Bug Fixes
 
 ## Features (MVP1.1)
 
@@ -322,6 +322,24 @@ Run the system test from Apps Script editor:
 These features will be added in future versions (MVP2, MVP3).
 
 ## Version History
+
+### v0.2.0 (2026-01-12) - Enhanced Filename Generation & Bug Fixes
+**New Features:**
+- **Fill Default Filenames**: New menu item to auto-generate filenames for all recipients
+- **Improved filename generation**: Better handling of missing First Name or Last Name
+- **Template name in filenames**: Default format now includes template name (e.g., "Template Name - First Last")
+
+**Bug Fixes:**
+- Fixed orphan file detection when using same folder for both documents and PDFs
+- Fixed undefined `logError` and `logInfo` function calls
+- Fixed PDF naming to match source document names
+- Fixed default filename format to include template name
+
+**Improvements:**
+- Removed Filename column from sample data (now optional)
+- Changed default `DOCUMENT_NAME_TEMPLATE` to empty (uses smart defaults)
+- Enhanced filename fallback logic for missing name fields
+- Added same-folder mode detection with improved diagnostics
 
 ### MVP1.1 - Separate Email and PDF Templates
 **Key Changes:**
