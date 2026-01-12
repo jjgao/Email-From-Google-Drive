@@ -453,7 +453,10 @@ function generateAllPdfs() {
   for (const recipient of recipients) {
     try {
       const docId = recipient.data['Doc ID'];
-      const pdfName = `${recipient.data.Name || recipient.data.Email} - PDF`;
+
+      // Use the same name as the document
+      const docFile = DriveApp.getFileById(docId);
+      const pdfName = docFile.getName();
 
       // Generate PDF from document
       const result = generatePdfFromDoc(docId, pdfFolderId, pdfName);
@@ -684,7 +687,10 @@ function regenerateAllPdfs() {
   for (const recipient of recipients) {
     try {
       const docId = recipient.data['Doc ID'];
-      const pdfName = `${recipient.data.Name || recipient.data.Email} - PDF`;
+
+      // Use the same name as the document
+      const docFile = DriveApp.getFileById(docId);
+      const pdfName = docFile.getName();
 
       // Generate PDF from document
       const result = generatePdfFromDoc(docId, pdfFolderId, pdfName);
