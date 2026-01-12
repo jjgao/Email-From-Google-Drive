@@ -134,7 +134,7 @@ function createPersonalizedDocument(templateDocId, recipientData, folderId) {
  * Supports:
  * 1. Custom "Filename" column in recipient sheet (highest priority)
  * 2. DOCUMENT_NAME_TEMPLATE config with {{placeholders}}
- * 3. Fallback to "Name - Date" format
+ * 3. Fallback to "Template Name - First Last" format
  * @param {Object} recipientData - Recipient data
  * @returns {string} Document name
  */
@@ -162,20 +162,31 @@ function generateDocumentName(recipientData) {
   }
 
   // Priority 3: Fallback to default format
-  // Try to use First Name + Last Name, then Name, then Email
-  let identifier = '';
+  // Use template name + First Last name format
+  let templateName = 'Document';
+  try {
+    const templateDocId = getConfig(CONFIG_KEYS.PDF_TEMPLATE_DOC_ID);
+    if (templateDocId) {
+      const templateFile = DriveApp.getFileById(templateDocId);
+      templateName = templateFile.getName();
+    }
+  } catch (error) {
+    // Use default if template not found
+  }
+
+  // Build recipient name: First Last (or just what's available)
+  let recipientName = '';
   if (recipientData['First Name'] || recipientData['Last Name']) {
     const firstName = recipientData['First Name'] || '';
     const lastName = recipientData['Last Name'] || '';
-    identifier = `${lastName}, ${firstName}`.replace(/, $/, '').replace(/^, /, '');
+    recipientName = `${firstName} ${lastName}`.trim();
   } else if (recipientData.Name) {
-    identifier = recipientData.Name;
+    recipientName = recipientData.Name;
   } else {
-    identifier = recipientData.Email || 'Document';
+    recipientName = recipientData.Email || 'Recipient';
   }
 
-  const timestamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
-  return `${identifier} - ${timestamp}`;
+  return `${templateName} - ${recipientName}`;
 }
 
 /**
