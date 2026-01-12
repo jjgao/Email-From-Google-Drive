@@ -713,6 +713,56 @@ function regenerateAllPdfs() {
 }
 
 /**
+ * Preview orphan documents (for confirmation before deletion)
+ * @returns {Object} Preview with orphan and protected file lists
+ */
+function previewOrphanDocuments() {
+  const folderId = getConfig(CONFIG_KEYS.OUTPUT_FOLDER_ID);
+
+  if (!folderId) {
+    throw new Error('Output Folder ID not configured.');
+  }
+
+  const allRecipients = getAllRecipients();
+  const validDocIds = allRecipients
+    .map(r => (r['Doc ID'] || '').toString().trim())
+    .filter(id => id !== '');
+
+  const folder = DriveApp.getFolderById(folderId);
+  const files = folder.getFiles();
+
+  const orphanFiles = [];
+  const protectedFiles = [];
+  let totalCount = 0;
+
+  while (files.hasNext()) {
+    const file = files.next();
+    const fileId = file.getId();
+    totalCount++;
+
+    const fileInfo = {
+      name: file.getName(),
+      id: fileId
+    };
+
+    if (!validDocIds.includes(fileId)) {
+      orphanFiles.push(fileInfo);
+    } else {
+      protectedFiles.push(fileInfo);
+    }
+  }
+
+  return {
+    total: totalCount,
+    orphanCount: orphanFiles.length,
+    protectedCount: protectedFiles.length,
+    orphanFiles: orphanFiles,
+    protectedFiles: protectedFiles,
+    validDocIdsCount: validDocIds.length
+  };
+}
+
+/**
  * Delete orphan documents from output folder
  * (files that don't match any current recipient)
  * @returns {Object} Results with deleted count
@@ -734,10 +784,12 @@ function deleteOrphanDocuments() {
 
   let deletedCount = 0;
   const deletedFiles = [];
+  let totalCount = 0;
 
   while (files.hasNext()) {
     const file = files.next();
     const fileId = file.getId();
+    totalCount++;
 
     // If file ID is not in our valid Doc IDs, it's an orphan
     if (!validDocIds.includes(fileId)) {
@@ -751,8 +803,60 @@ function deleteOrphanDocuments() {
   }
 
   return {
+    total: totalCount,
     deleted: deletedCount,
-    files: deletedFiles
+    files: deletedFiles,
+    validDocIdsCount: validDocIds.length
+  };
+}
+
+/**
+ * Preview orphan PDFs (for confirmation before deletion)
+ * @returns {Object} Preview with orphan and protected file lists
+ */
+function previewOrphanPdfs() {
+  const pdfFolderId = getConfig(CONFIG_KEYS.PDF_FOLDER_ID);
+
+  if (!pdfFolderId) {
+    throw new Error('PDF Folder ID not configured.');
+  }
+
+  const allRecipients = getAllRecipients();
+  const validPdfIds = allRecipients
+    .map(r => (r['PDF ID'] || '').toString().trim())
+    .filter(id => id !== '');
+
+  const folder = DriveApp.getFolderById(pdfFolderId);
+  const files = folder.getFiles();
+
+  const orphanFiles = [];
+  const protectedFiles = [];
+  let totalCount = 0;
+
+  while (files.hasNext()) {
+    const file = files.next();
+    const fileId = file.getId();
+    totalCount++;
+
+    const fileInfo = {
+      name: file.getName(),
+      id: fileId
+    };
+
+    if (!validPdfIds.includes(fileId)) {
+      orphanFiles.push(fileInfo);
+    } else {
+      protectedFiles.push(fileInfo);
+    }
+  }
+
+  return {
+    total: totalCount,
+    orphanCount: orphanFiles.length,
+    protectedCount: protectedFiles.length,
+    orphanFiles: orphanFiles,
+    protectedFiles: protectedFiles,
+    validPdfIdsCount: validPdfIds.length
   };
 }
 
@@ -778,10 +882,12 @@ function deleteOrphanPdfs() {
 
   let deletedCount = 0;
   const deletedFiles = [];
+  let totalCount = 0;
 
   while (files.hasNext()) {
     const file = files.next();
     const fileId = file.getId();
+    totalCount++;
 
     // If file ID is not in our valid PDF IDs, it's an orphan
     if (!validPdfIds.includes(fileId)) {
@@ -795,9 +901,42 @@ function deleteOrphanPdfs() {
   }
 
   return {
+    total: totalCount,
     deleted: deletedCount,
-    files: deletedFiles
+    files: deletedFiles,
+    validPdfIdsCount: validPdfIds.length
   };
+}
+
+/**
+ * Preview all orphan files (both documents and PDFs)
+ * @returns {Object} Preview with orphan counts and file lists
+ */
+function previewAllOrphanFiles() {
+  const results = {
+    documents: { total: 0, orphanCount: 0, protectedCount: 0, orphanFiles: [], protectedFiles: [], validDocIdsCount: 0 },
+    pdfs: { total: 0, orphanCount: 0, protectedCount: 0, orphanFiles: [], protectedFiles: [], validPdfIdsCount: 0 }
+  };
+
+  // Preview orphan documents
+  try {
+    results.documents = previewOrphanDocuments();
+  } catch (error) {
+    if (error.message !== 'Output Folder ID not configured.') {
+      throw error;
+    }
+  }
+
+  // Preview orphan PDFs
+  try {
+    results.pdfs = previewOrphanPdfs();
+  } catch (error) {
+    if (error.message !== 'PDF Folder ID not configured.') {
+      throw error;
+    }
+  }
+
+  return results;
 }
 
 /**
@@ -806,8 +945,8 @@ function deleteOrphanPdfs() {
  */
 function deleteAllOrphanFiles() {
   const results = {
-    documents: { deleted: 0, files: [] },
-    pdfs: { deleted: 0, files: [] }
+    documents: { total: 0, deleted: 0, files: [], validDocIdsCount: 0 },
+    pdfs: { total: 0, deleted: 0, files: [], validPdfIdsCount: 0 }
   };
 
   // Delete orphan documents

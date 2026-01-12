@@ -1290,51 +1290,136 @@ function regenerateAllPdfsUI() {
 function deleteOrphanFilesUI() {
   const ui = SpreadsheetApp.getUi();
 
-  const response = ui.alert(
-    'Delete Orphan Files',
-    '⚠️ WARNING: This will permanently delete files in your output folders that don\'t match any recipient in the sheet.\n\n' +
-    'Orphan files are those with IDs that don\'t appear in the "Doc ID" or "PDF ID" columns.\n\n' +
-    'Deleted files will be moved to trash and can be recovered from Google Drive trash for 30 days.\n\n' +
-    'Continue?',
-    ui.ButtonSet.YES_NO
-  );
-
-  if (response !== ui.Button.YES) {
-    return;
-  }
-
   try {
-    SpreadsheetApp.getActiveSpreadsheet().toast('Scanning for orphan files...', 'Processing', -1);
+    // First, preview what would be deleted
+    SpreadsheetApp.getActiveSpreadsheet().toast('Scanning folders for orphan files...', 'Processing', -1);
+
+    const preview = previewAllOrphanFiles();
+    const totalOrphans = preview.documents.orphanCount + preview.pdfs.orphanCount;
+    const totalFiles = preview.documents.total + preview.pdfs.total;
+    const totalProtected = preview.documents.protectedCount + preview.pdfs.protectedCount;
+
+    SpreadsheetApp.getActiveSpreadsheet().toast('Scan complete', 'Done', 2);
+
+    // Check if no orphans found
+    if (totalOrphans === 0) {
+      ui.alert(
+        'No Orphan Files Found',
+        'All files in your output folders match recipients in the sheet.\n\n' +
+        `📊 Summary:\n` +
+        `• Total files: ${totalFiles}\n` +
+        `• Protected files: ${totalProtected}\n` +
+        `• Orphan files: 0\n\n` +
+        `✅ No cleanup needed.`,
+        ui.ButtonSet.OK
+      );
+      return;
+    }
+
+    // Build preview message
+    let previewMessage = '⚠️ PREVIEW: The following files will be deleted:\n\n';
+    previewMessage += `📊 Summary:\n`;
+    previewMessage += `• Total files in folders: ${totalFiles}\n`;
+    previewMessage += `• Protected (linked to recipients): ${totalProtected}\n`;
+    previewMessage += `• Orphan (will be deleted): ${totalOrphans}\n\n`;
+
+    // Warning if deleting a large percentage
+    const deletePercent = (totalOrphans / totalFiles * 100).toFixed(0);
+    if (deletePercent >= 50) {
+      previewMessage += `🚨 WARNING: This will delete ${deletePercent}% of all files!\n`;
+      previewMessage += `⚠️ This may indicate a problem. Please verify:\n`;
+      previewMessage += `• Recipients have Doc IDs/PDF IDs filled in\n`;
+      previewMessage += `• These folders are only for this email campaign\n\n`;
+    }
+
+    // Warning if no recipient IDs found
+    if (preview.documents.validDocIdsCount === 0 && preview.documents.total > 0) {
+      previewMessage += `⚠️ WARNING: No recipients have Doc IDs!\n`;
+      previewMessage += `This will delete ALL ${preview.documents.total} documents.\n`;
+      previewMessage += `Make sure you've created documents first.\n\n`;
+    }
+    if (preview.pdfs.validPdfIdsCount === 0 && preview.pdfs.total > 0) {
+      previewMessage += `⚠️ WARNING: No recipients have PDF IDs!\n`;
+      previewMessage += `This will delete ALL ${preview.pdfs.total} PDFs.\n`;
+      previewMessage += `Make sure you've generated PDFs first.\n\n`;
+    }
+
+    // List files to be deleted (limit to first 10 of each type)
+    if (preview.documents.orphanCount > 0) {
+      previewMessage += `📄 Documents to delete (${preview.documents.orphanCount}):\n`;
+      const docsToShow = preview.documents.orphanFiles.slice(0, 10);
+      docsToShow.forEach(file => {
+        previewMessage += `• ${file.name}\n`;
+      });
+      if (preview.documents.orphanCount > 10) {
+        previewMessage += `... and ${preview.documents.orphanCount - 10} more\n`;
+      }
+      previewMessage += '\n';
+    }
+
+    if (preview.pdfs.orphanCount > 0) {
+      previewMessage += `📕 PDFs to delete (${preview.pdfs.orphanCount}):\n`;
+      const pdfsToShow = preview.pdfs.orphanFiles.slice(0, 10);
+      pdfsToShow.forEach(file => {
+        previewMessage += `• ${file.name}\n`;
+      });
+      if (preview.pdfs.orphanCount > 10) {
+        previewMessage += `... and ${preview.pdfs.orphanCount - 10} more\n`;
+      }
+      previewMessage += '\n';
+    }
+
+    previewMessage += 'Files will be moved to trash (recoverable for 30 days).\n\n';
+    previewMessage += 'Proceed with deletion?';
+
+    // Show preview and confirm
+    const response = ui.alert(
+      'Delete Orphan Files - Confirmation',
+      previewMessage,
+      ui.ButtonSet.YES_NO
+    );
+
+    if (response !== ui.Button.YES) {
+      ui.alert('Cancelled', 'No files were deleted.', ui.ButtonSet.OK);
+      return;
+    }
+
+    // Proceed with deletion
+    SpreadsheetApp.getActiveSpreadsheet().toast('Deleting orphan files...', 'Processing', -1);
 
     const results = deleteAllOrphanFiles();
 
     SpreadsheetApp.getActiveSpreadsheet().toast('Cleanup complete!', 'Success', 3);
 
     // Show results
-    let message = `Orphan files have been moved to trash:\n\n`;
+    let message = `✅ Orphan files have been moved to trash:\n\n`;
     message += `Documents deleted: ${results.documents.deleted}\n`;
     message += `PDFs deleted: ${results.pdfs.deleted}\n\n`;
 
     if (results.documents.deleted > 0) {
       message += 'Deleted documents:\n';
-      results.documents.files.forEach(file => {
+      const docsToShow = results.documents.files.slice(0, 15);
+      docsToShow.forEach(file => {
         message += `• ${file.name}\n`;
       });
+      if (results.documents.deleted > 15) {
+        message += `... and ${results.documents.deleted - 15} more\n`;
+      }
       message += '\n';
     }
 
     if (results.pdfs.deleted > 0) {
       message += 'Deleted PDFs:\n';
-      results.pdfs.files.forEach(file => {
+      const pdfsToShow = results.pdfs.files.slice(0, 15);
+      pdfsToShow.forEach(file => {
         message += `• ${file.name}\n`;
       });
+      if (results.pdfs.deleted > 15) {
+        message += `... and ${results.pdfs.deleted - 15} more\n`;
+      }
     }
 
-    if (results.documents.deleted === 0 && results.pdfs.deleted === 0) {
-      message = 'No orphan files found. All files match current recipients.';
-    } else {
-      message += '\nFiles can be recovered from Google Drive trash for 30 days.';
-    }
+    message += '\nFiles can be recovered from Google Drive trash for 30 days.';
 
     ui.alert('Cleanup Complete', message, ui.ButtonSet.OK);
 
