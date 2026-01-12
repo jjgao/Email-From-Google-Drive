@@ -23,6 +23,10 @@ function onOpen() {
     .addItem('🔄 Regenerate All PDFs', 'regenerateAllPdfsUI')
     .addItem('✏️ Fill Default Filenames', 'fillDefaultFilenamesUI')
     .addSeparator()
+    .addSubMenu(ui.createMenu('Quick Test')
+      .addItem('📄 Create Document (First Row)', 'createFirstDocumentUI')
+      .addItem('📕 Generate PDF (First Row)', 'generateFirstPdfUI'))
+    .addSeparator()
     // Email Campaign
     .addItem('📧 Send Test Email', 'sendTestEmailUI')
     .addItem('🚀 Send Campaign', 'sendCampaignUI')
@@ -1572,5 +1576,165 @@ function fillDefaultFilenamesUI() {
   } catch (error) {
     SpreadsheetApp.getActiveSpreadsheet().toast('Failed to fill filenames', 'Error', 3);
     ui.alert('Error', `Failed to fill filenames:\n\n${error.message}`, ui.ButtonSet.OK);
+  }
+}
+
+/**
+ * Create document for first row only (UI wrapper)
+ */
+function createFirstDocumentUI() {
+  const ui = SpreadsheetApp.getUi();
+
+  try {
+    // Get first recipient
+    const allRecipients = getAllRecipientsFormatted();
+
+    if (allRecipients.length === 0) {
+      ui.alert(
+        'No Recipients',
+        'No recipients found in the sheet.',
+        ui.ButtonSet.OK
+      );
+      return;
+    }
+
+    const firstRecipient = allRecipients[0];
+
+    // Check if document already exists
+    if (firstRecipient.data['Doc ID'] && firstRecipient.data['Doc ID'].toString().trim() !== '') {
+      const response = ui.alert(
+        'Document Already Exists',
+        `First recipient (${firstRecipient.email}) already has a document.\n\n` +
+        'This will create a new document and replace the existing Doc ID.\n\n' +
+        'Continue?',
+        ui.ButtonSet.YES_NO
+      );
+
+      if (response !== ui.Button.YES) {
+        return;
+      }
+    } else {
+      const response = ui.alert(
+        'Create Document (First Row)',
+        `This will create a document for the first recipient:\n` +
+        `${firstRecipient.email}\n\n` +
+        'Continue?',
+        ui.ButtonSet.YES_NO
+      );
+
+      if (response !== ui.Button.YES) {
+        return;
+      }
+    }
+
+    SpreadsheetApp.getActiveSpreadsheet().toast('Creating document...', 'Processing', -1);
+
+    const result = createFirstDocument();
+
+    SpreadsheetApp.getActiveSpreadsheet().toast('Document created!', 'Success', 3);
+
+    // Show results
+    let message = `✅ Document created successfully!\n\n`;
+    message += `Recipient: ${result.email}\n`;
+    message += `Document: ${result.docName}\n`;
+    message += `Document ID: ${result.docId}\n\n`;
+    message += 'The document has been saved to your output folder.';
+
+    ui.alert('Document Created', message, ui.ButtonSet.OK);
+
+  } catch (error) {
+    SpreadsheetApp.getActiveSpreadsheet().toast('Failed to create document', 'Error', 3);
+    ui.alert('Error', `Failed to create document:\n\n${error.message}`, ui.ButtonSet.OK);
+  }
+}
+
+/**
+ * Generate PDF for first row only (UI wrapper)
+ */
+function generateFirstPdfUI() {
+  const ui = SpreadsheetApp.getUi();
+
+  try {
+    // Check if PDF folder is configured
+    const pdfFolderId = getConfig(CONFIG_KEYS.PDF_FOLDER_ID);
+    if (!pdfFolderId) {
+      ui.alert(
+        'PDF Folder Not Configured',
+        'Please configure the PDF Folder ID in the Config sheet before generating PDFs.',
+        ui.ButtonSet.OK
+      );
+      return;
+    }
+
+    // Get first recipient
+    const allRecipients = getAllRecipientsFormatted();
+
+    if (allRecipients.length === 0) {
+      ui.alert(
+        'No Recipients',
+        'No recipients found in the sheet.',
+        ui.ButtonSet.OK
+      );
+      return;
+    }
+
+    const firstRecipient = allRecipients[0];
+
+    // Check if document exists
+    if (!firstRecipient.data['Doc ID'] || firstRecipient.data['Doc ID'].toString().trim() === '') {
+      ui.alert(
+        'No Document Found',
+        'First recipient does not have a document yet.\n\n' +
+        'Please create a document first using "Create Document (First Row)".',
+        ui.ButtonSet.OK
+      );
+      return;
+    }
+
+    // Check if PDF already exists
+    if (firstRecipient.data['PDF ID'] && firstRecipient.data['PDF ID'].toString().trim() !== '') {
+      const response = ui.alert(
+        'PDF Already Exists',
+        `First recipient (${firstRecipient.email}) already has a PDF.\n\n` +
+        'This will create a new PDF and replace the existing PDF ID.\n\n' +
+        'Continue?',
+        ui.ButtonSet.YES_NO
+      );
+
+      if (response !== ui.Button.YES) {
+        return;
+      }
+    } else {
+      const response = ui.alert(
+        'Generate PDF (First Row)',
+        `This will generate a PDF for the first recipient:\n` +
+        `${firstRecipient.email}\n\n` +
+        'Continue?',
+        ui.ButtonSet.YES_NO
+      );
+
+      if (response !== ui.Button.YES) {
+        return;
+      }
+    }
+
+    SpreadsheetApp.getActiveSpreadsheet().toast('Generating PDF...', 'Processing', -1);
+
+    const result = generateFirstPdf();
+
+    SpreadsheetApp.getActiveSpreadsheet().toast('PDF generated!', 'Success', 3);
+
+    // Show results
+    let message = `✅ PDF generated successfully!\n\n`;
+    message += `Recipient: ${result.email}\n`;
+    message += `PDF: ${result.pdfName}\n`;
+    message += `PDF ID: ${result.pdfId}\n\n`;
+    message += 'The PDF has been saved to your PDF folder.';
+
+    ui.alert('PDF Generated', message, ui.ButtonSet.OK);
+
+  } catch (error) {
+    SpreadsheetApp.getActiveSpreadsheet().toast('Failed to generate PDF', 'Error', 3);
+    ui.alert('Error', `Failed to generate PDF:\n\n${error.message}`, ui.ButtonSet.OK);
   }
 }

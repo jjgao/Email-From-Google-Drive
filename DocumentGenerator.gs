@@ -338,6 +338,113 @@ function fillDefaultFilenames() {
 }
 
 /**
+ * Create document for first recipient only (Quick Test)
+ * @returns {Object} Result with email, docId, docName
+ */
+function createFirstDocument() {
+  const validation = validateConfig();
+  if (!validation.isValid) {
+    throw new Error(`Missing required configuration: ${validation.missing.join(', ')}`);
+  }
+
+  const templateDocId = getConfig(CONFIG_KEYS.PDF_TEMPLATE_DOC_ID);
+  const folderId = getConfig(CONFIG_KEYS.OUTPUT_FOLDER_ID);
+
+  if (!templateDocId) {
+    throw new Error('PDF Template Document ID not configured. Please set it in the Config sheet to generate documents.');
+  }
+
+  if (!folderId) {
+    throw new Error('Output Folder ID not configured. Please set it in the Config sheet.');
+  }
+
+  const allRecipients = getAllRecipientsFormatted();
+
+  if (allRecipients.length === 0) {
+    throw new Error('No recipients found in the sheet.');
+  }
+
+  const firstRecipient = allRecipients[0];
+
+  try {
+    // Create personalized document
+    const result = createPersonalizedDocument(templateDocId, firstRecipient.data, folderId);
+
+    // Update recipient with document ID
+    updateRecipientDocId(firstRecipient.row, result.docId);
+
+    // Clear PDF ID since document has been created/regenerated
+    clearRecipientPdfId(firstRecipient.row);
+
+    // Log success
+    logDocumentCreation(firstRecipient.data, result.docId, result.docUrl, 'test');
+
+    return {
+      email: firstRecipient.email,
+      docId: result.docId,
+      docName: result.docName
+    };
+
+  } catch (error) {
+    // Log failure
+    logDocumentCreation(firstRecipient.data, null, null, 'failed', error.message);
+    throw error;
+  }
+}
+
+/**
+ * Generate PDF for first recipient only (Quick Test)
+ * @returns {Object} Result with email, pdfId, pdfName
+ */
+function generateFirstPdf() {
+  const pdfFolderId = getConfig(CONFIG_KEYS.PDF_FOLDER_ID);
+
+  if (!pdfFolderId) {
+    throw new Error('PDF Folder ID not configured. Please set it in the Config sheet.');
+  }
+
+  const allRecipients = getAllRecipientsFormatted();
+
+  if (allRecipients.length === 0) {
+    throw new Error('No recipients found in the sheet.');
+  }
+
+  const firstRecipient = allRecipients[0];
+
+  // Check if first recipient has a Doc ID
+  const docId = (firstRecipient.data['Doc ID'] || '').toString().trim();
+  if (!docId) {
+    throw new Error(`First recipient (${firstRecipient.email}) does not have a document yet. Please create a document first.`);
+  }
+
+  try {
+    // Use the same name as the document
+    const docFile = DriveApp.getFileById(docId);
+    const pdfName = docFile.getName();
+
+    // Generate PDF from document
+    const result = generatePdfFromDoc(docId, pdfFolderId, pdfName);
+
+    // Update recipient with PDF ID
+    updateRecipientPdfId(firstRecipient.row, result.pdfId);
+
+    // Log success
+    logPdfGeneration(firstRecipient.data, result.pdfId, result.pdfUrl, 'test');
+
+    return {
+      email: firstRecipient.email,
+      pdfId: result.pdfId,
+      pdfName: result.pdfName
+    };
+
+  } catch (error) {
+    // Log failure
+    logPdfGeneration(firstRecipient.data, null, null, 'failed', error.message);
+    throw error;
+  }
+}
+
+/**
  * Clean up orphaned punctuation in Google Doc after placeholder replacement
  * Note: Google Apps Script's replaceText() doesn't support lookahead assertions
  * @param {GoogleAppsScript.Document.Body} body - Document body
