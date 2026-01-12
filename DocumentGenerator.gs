@@ -329,13 +329,10 @@ function fillDefaultFilenames() {
       }
     }
 
-    // Log the operation
-    logInfo('FILENAME_FILL', `Filled default filenames for ${results.filled} recipients`);
-
     return results;
 
   } catch (error) {
-    logError('FILENAME_FILL', error.message);
+    Logger.log(`Error filling filenames: ${error.message}`);
     throw error;
   }
 }
