@@ -513,11 +513,11 @@ function createSampleDataUI() {
     sheet.getRange(2, 1, sampleData.length, headers.length).setValues(sampleData);
 
     // Set formula for Filename column (column 9) - demonstrates dynamic naming
-    // Formula: "Custom Doc Name - First Name - Last Name"
+    // Formula: "Custom Doc Name" with each name component added only if it exists
     const filenameFormulas = [
-      ['=IF(AND(B2<>"", C2<>""), "Custom Doc Name - " & B2 & " - " & C2, "")'],
-      ['=IF(AND(B3<>"", C3<>""), "Custom Doc Name - " & B3 & " - " & C3, "")'],
-      ['=IF(AND(B4<>"", C4<>""), "Custom Doc Name - " & B4 & " - " & C4, "")']
+      ['="Custom Doc Name" & IF(B2<>"", " - " & B2, "") & IF(C2<>"", " - " & C2, "")'],
+      ['="Custom Doc Name" & IF(B3<>"", " - " & B3, "") & IF(C3<>"", " - " & C3, "")'],
+      ['="Custom Doc Name" & IF(B4<>"", " - " & B4, "") & IF(C4<>"", " - " & C4, "")']
     ];
     sheet.getRange(2, 9, filenameFormulas.length, 1).setFormulas(filenameFormulas);
 
