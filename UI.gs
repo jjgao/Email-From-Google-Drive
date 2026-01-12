@@ -10,39 +10,41 @@ function onOpen() {
   const ui = SpreadsheetApp.getUi();
 
   ui.createMenu('Email Campaign')
-    // Setup & Configuration
-    .addItem('⚙️ Open Config Sheet', 'openConfigSheetUI')
-    .addItem('📋 Create Sample Data', 'createSampleDataUI')
-    .addItem('📧 Create Sample Email Template', 'createSampleEmailTemplateUI')
-    .addItem('📄 Create Sample PDF Template', 'createSamplePdfTemplateUI')
-    .addSeparator()
-    // Document Generation
-    .addItem('📑 Create All Documents', 'createAllDocumentsUI')
-    .addItem('🔄 Regenerate All Documents', 'regenerateAllDocumentsUI')
-    .addItem('📕 Generate All PDFs', 'generateAllPdfsUI')
-    .addItem('🔄 Regenerate All PDFs', 'regenerateAllPdfsUI')
-    .addItem('✏️ Fill Default Filenames', 'fillDefaultFilenamesUI')
-    .addSeparator()
-    .addSubMenu(ui.createMenu('Quick Test')
-      .addItem('📄 Create Document (First Row)', 'createFirstDocumentUI')
-      .addItem('📕 Generate PDF (First Row)', 'generateFirstPdfUI'))
-    .addSeparator()
-    // Email Campaign
-    .addItem('📧 Send Test Email', 'sendTestEmailUI')
+    // Top Level - Most Frequently Used Operations
     .addItem('🚀 Send Campaign', 'sendCampaignUI')
     .addItem('⚡ Generate PDFs & Send', 'generatePdfsAndSendCampaignUI')
+    .addItem('📑 Create All Documents', 'createAllDocumentsUI')
+    .addItem('📕 Generate All PDFs', 'generateAllPdfsUI')
     .addSeparator()
-    // Reports & Analytics
+    // Reports & Monitoring
     .addItem('📊 View Logs', 'openLogSheet')
     .addItem('📈 View Statistics', 'showStatsDialog')
     .addSeparator()
-    .addSubMenu(ui.createMenu('Advanced')
-      .addItem('Setup via Dialog (Legacy)', 'showConfigDialog')
-      .addItem('Clear Configuration', 'clearConfigUI')
-      .addItem('Ensure Status Column', 'ensureStatusColumnUI')
+    // Setup Submenu
+    .addSubMenu(ui.createMenu('Setup')
+      .addItem('⚙️ Open Config Sheet', 'openConfigSheetUI')
+      .addItem('📋 Create Sample Data', 'createSampleDataUI')
+      .addItem('📧 Create Sample Email Template', 'createSampleEmailTemplateUI')
+      .addItem('📄 Create Sample PDF Template', 'createSamplePdfTemplateUI'))
+    // Testing Submenu
+    .addSubMenu(ui.createMenu('Testing')
+      .addItem('📧 Send Test Email', 'sendTestEmailUI')
+      .addItem('📄 Create Document (First Row)', 'createFirstDocumentUI')
+      .addItem('📕 Generate PDF (First Row)', 'generateFirstPdfUI'))
+    // Maintenance Submenu
+    .addSubMenu(ui.createMenu('Maintenance')
+      .addItem('✏️ Fill Default Filenames', 'fillDefaultFilenamesUI')
+      .addItem('🔄 Regenerate All Documents', 'regenerateAllDocumentsUI')
+      .addItem('🔄 Regenerate All PDFs', 'regenerateAllPdfsUI')
       .addSeparator()
-      .addItem('🗑️ Delete Orphan Files', 'deleteOrphanFilesUI')
-      .addItem('🔍 Debug Orphan Files', 'debugOrphanFilesUI'))
+      .addSubMenu(ui.createMenu('Advanced')
+        .addItem('🔍 Preview Orphan Files', 'previewOrphanFilesUI')
+        .addItem('🗑️ Delete Orphan Files', 'deleteOrphanFilesUI')
+        .addItem('🐛 Debug Orphan Files', 'debugOrphanFilesUI')
+        .addSeparator()
+        .addItem('Setup via Dialog (Legacy)', 'showConfigDialog')
+        .addItem('Clear Configuration', 'clearConfigUI')
+        .addItem('Ensure Status Column', 'ensureStatusColumnUI')))
     .addToUi();
 }
 
@@ -1276,6 +1278,87 @@ function regenerateAllPdfsUI() {
   } catch (error) {
     SpreadsheetApp.getActiveSpreadsheet().toast('Failed to regenerate PDFs', 'Error', 3);
     ui.alert('Error', `Failed to regenerate PDFs:\n\n${error.message}`, ui.ButtonSet.OK);
+  }
+}
+
+/**
+ * Preview orphan files without deleting (UI wrapper)
+ */
+function previewOrphanFilesUI() {
+  const ui = SpreadsheetApp.getUi();
+
+  try {
+    SpreadsheetApp.getActiveSpreadsheet().toast('Scanning folders for orphan files...', 'Processing', -1);
+
+    const preview = previewAllOrphanFiles();
+    const totalOrphans = preview.documents.orphanCount + preview.pdfs.orphanCount;
+    const totalFiles = preview.documents.total + preview.pdfs.total;
+    const totalProtected = preview.documents.protectedCount + preview.pdfs.protectedCount;
+
+    SpreadsheetApp.getActiveSpreadsheet().toast('Scan complete', 'Done', 2);
+
+    // Build preview message
+    let message = '📋 ORPHAN FILES PREVIEW\n\n';
+
+    // Show same folder mode notice
+    if (preview.sameFolderMode) {
+      message += 'ℹ️ SAME FOLDER MODE DETECTED\n';
+      message += 'Using one folder for both documents and PDFs.\n';
+      message += 'Files are protected if they appear in EITHER "Doc ID" OR "PDF ID" column.\n\n';
+    }
+
+    message += `📊 Summary:\n`;
+    message += `• Total files in folder${preview.sameFolderMode ? '' : 's'}: ${totalFiles}\n`;
+    message += `• Protected (linked to recipients): ${totalProtected}\n`;
+    message += `• Orphan (not linked): ${totalOrphans}\n\n`;
+
+    // Check if no orphans found
+    if (totalOrphans === 0) {
+      message += '✅ All files match recipients in the sheet.\n';
+      message += 'No orphan files found - no cleanup needed.';
+      ui.alert('No Orphan Files Found', message, ui.ButtonSet.OK);
+      return;
+    }
+
+    // Warning if large percentage
+    const deletePercent = (totalOrphans / totalFiles * 100).toFixed(0);
+    if (deletePercent >= 50) {
+      message += `\n⚠️ WARNING: ${deletePercent}% of all files are orphans!\n`;
+      message += `This may indicate:\n`;
+      message += `• Recipients are missing Doc IDs/PDF IDs\n`;
+      message += `• Wrong folders are configured\n\n`;
+    }
+
+    // Show sample orphan files (up to 10)
+    if (preview.documents.orphanFiles && preview.documents.orphanFiles.length > 0) {
+      message += '\n📄 Orphan Documents:\n';
+      const docSamples = preview.documents.orphanFiles.slice(0, 10);
+      docSamples.forEach(file => {
+        message += `• ${file.name}\n`;
+      });
+      if (preview.documents.orphanFiles.length > 10) {
+        message += `... and ${preview.documents.orphanFiles.length - 10} more\n`;
+      }
+    }
+
+    if (!preview.sameFolderMode && preview.pdfs.orphanFiles && preview.pdfs.orphanFiles.length > 0) {
+      message += '\n📕 Orphan PDFs:\n';
+      const pdfSamples = preview.pdfs.orphanFiles.slice(0, 10);
+      pdfSamples.forEach(file => {
+        message += `• ${file.name}\n`;
+      });
+      if (preview.pdfs.orphanFiles.length > 10) {
+        message += `... and ${preview.pdfs.orphanFiles.length - 10} more\n`;
+      }
+    }
+
+    message += '\n💡 Use "Delete Orphan Files" to remove these files.';
+
+    ui.alert('Orphan Files Preview', message, ui.ButtonSet.OK);
+
+  } catch (error) {
+    SpreadsheetApp.getActiveSpreadsheet().toast('Failed to preview orphan files', 'Error', 3);
+    ui.alert('Error', `Failed to preview orphan files:\n\n${error.message}`, ui.ButtonSet.OK);
   }
 }
 
