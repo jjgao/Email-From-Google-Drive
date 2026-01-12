@@ -503,14 +503,23 @@ function createSampleDataUI() {
 
     // Add sample data
     // Note: Third recipient has missing City field to test validation
-    // Note: First recipient has custom filename
+    // Note: Filename column will use formula to demonstrate dynamic naming
     const sampleData = [
-      ['your-email@example.com', 'John', 'Doe', '123 Main Street', 'Apt 4B', 'New York', 'NY', '10001', 'Custom Doc Name', 'pending', '', '', ''],
+      ['your-email@example.com', 'John', 'Doe', '123 Main Street', 'Apt 4B', 'New York', 'NY', '10001', '', 'pending', '', '', ''],
       ['another-email@example.com', 'Jane', 'Smith', '456 Oak Avenue', '', 'Los Angeles', 'CA', '90001', '', 'pending', '', '', ''],
       ['third-email@example.com', 'Bob', 'Johnson', '789 Pine Road', 'Suite 200', '', 'IL', '60601', '', 'pending', '', '', '']
     ];
 
     sheet.getRange(2, 1, sampleData.length, headers.length).setValues(sampleData);
+
+    // Set formula for Filename column (column 9) - demonstrates dynamic naming
+    // Formula: "Custom Doc Name - First Name - Last Name"
+    const filenameFormulas = [
+      ['=IF(AND(B2<>"", C2<>""), "Custom Doc Name - " & B2 & " - " & C2, "")'],
+      ['=IF(AND(B3<>"", C3<>""), "Custom Doc Name - " & B3 & " - " & C3, "")'],
+      ['=IF(AND(B4<>"", C4<>""), "Custom Doc Name - " & B4 & " - " & C4, "")']
+    ];
+    sheet.getRange(2, 9, filenameFormulas.length, 1).setFormulas(filenameFormulas);
 
     // Set column widths
     sheet.setColumnWidth(1, 220); // Email
@@ -537,8 +546,9 @@ function createSampleDataUI() {
       'Success',
       `Sample recipient sheet "${recipientSheetName}" created with 3 test recipients.\n\n` +
       'IMPORTANT: Please replace the sample email addresses with valid test emails before sending!\n\n' +
+      'NOTE: The Filename column uses a formula to demonstrate dynamic naming: "Custom Doc Name - First Name - Last Name". You can modify or remove this formula as needed.\n\n' +
       'NOTE: The third recipient (Bob Johnson) has a missing City field to test validation. Document generation will skip this recipient if City is used in your template.\n\n' +
-      'TIP: Use the "Filename" column to customize document names per recipient (overrides template config).\n\n' +
+      'TIP: Use the "Filename" column to customize document names per recipient (overrides template config). Can use formulas or static text.\n\n' +
       'TIP: Use the "Attachment IDs" column to attach additional files to emails (comma-separated Drive file IDs). PDFs are auto-attached when PDF ID exists.\n\n' +
       'Fields included: First Name, Last Name, Address1, Address2, City, State, ZIP, Filename (optional)\n\n' +
       'You can edit the data directly in the sheet.',
