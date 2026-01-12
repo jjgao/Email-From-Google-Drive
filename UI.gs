@@ -21,7 +21,6 @@ function onOpen() {
     .addItem('🔄 Regenerate All Documents', 'regenerateAllDocumentsUI')
     .addItem('📕 Generate All PDFs', 'generateAllPdfsUI')
     .addItem('🔄 Regenerate All PDFs', 'regenerateAllPdfsUI')
-    .addItem('📚 Combine All PDFs', 'combineAllPdfsUI')
     .addSeparator()
     // Email Campaign
     .addItem('📧 Send Test Email', 'sendTestEmailUI')
@@ -1520,85 +1519,5 @@ function debugOrphanFilesUI() {
   } catch (error) {
     SpreadsheetApp.getActiveSpreadsheet().toast('Failed to run diagnostic', 'Error', 3);
     ui.alert('Error', `Failed to run diagnostic:\n\n${error.message}`, ui.ButtonSet.OK);
-  }
-}
-
-/**
- * Combine all PDFs into one (UI wrapper)
- */
-function combineAllPdfsUI() {
-  const ui = SpreadsheetApp.getUi();
-
-  try {
-    // Check if PDF folder is configured
-    const pdfFolderId = getConfig(CONFIG_KEYS.PDF_FOLDER_ID);
-    if (!pdfFolderId) {
-      ui.alert(
-        'PDF Folder Not Configured',
-        'Please configure the PDF Folder ID in the Config sheet before combining PDFs.',
-        ui.ButtonSet.OK
-      );
-      return;
-    }
-
-    // Get count of PDFs
-    const allRecipients = getAllRecipients();
-    const recipientsWithPdfs = allRecipients.filter(r => {
-      const pdfId = (r['PDF ID'] || '').toString().trim();
-      return pdfId !== '';
-    });
-
-    if (recipientsWithPdfs.length === 0) {
-      ui.alert(
-        'No PDFs Found',
-        'No PDFs found to combine. Please generate PDFs first using:\n\n' +
-        '• Email Campaign → Generate All PDFs\n\n' +
-        'Make sure recipients have PDF IDs in the "PDF ID" column.',
-        ui.ButtonSet.OK
-      );
-      return;
-    }
-
-    // Confirm with user
-    const response = ui.alert(
-      'Combine All PDFs',
-      `This will combine ${recipientsWithPdfs.length} PDF(s) into a single PDF file.\n\n` +
-      'Each PDF will be separated by a page break with a header showing the recipient name.\n\n' +
-      'The combined PDF will be saved to your PDF folder.\n\n' +
-      'This may take a few minutes depending on the number of PDFs.\n\n' +
-      'Continue?',
-      ui.ButtonSet.YES_NO
-    );
-
-    if (response !== ui.Button.YES) {
-      return;
-    }
-
-    SpreadsheetApp.getActiveSpreadsheet().toast(`Combining ${recipientsWithPdfs.length} PDFs...`, 'Processing', -1);
-
-    const result = combineAllPdfs();
-
-    SpreadsheetApp.getActiveSpreadsheet().toast('PDFs combined successfully!', 'Success', 3);
-
-    // Show results
-    let message = `Successfully combined ${result.successCount} PDF(s) into one file!\n\n`;
-    message += `Combined PDF: ${result.pdfName}\n\n`;
-    message += `📄 Combined Document: ${result.docUrl}\n`;
-    message += `📕 Combined PDF: ${result.pdfUrl}\n\n`;
-
-    if (result.errorCount > 0) {
-      message += `\n⚠️ Errors (${result.errorCount}):\n`;
-      result.errors.forEach(err => {
-        message += `• ${err.recipient}: ${err.error}\n`;
-      });
-    }
-
-    message += '\nThe combined PDF has been saved to your PDF folder.';
-
-    ui.alert('PDFs Combined Successfully', message, ui.ButtonSet.OK);
-
-  } catch (error) {
-    SpreadsheetApp.getActiveSpreadsheet().toast('Failed to combine PDFs', 'Error', 3);
-    ui.alert('Error', `Failed to combine PDFs:\n\n${error.message}`, ui.ButtonSet.OK);
   }
 }
