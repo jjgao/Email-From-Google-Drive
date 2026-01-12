@@ -176,14 +176,29 @@ function generateDocumentName(recipientData) {
 
   // Build recipient name: First Last (or just what's available)
   let recipientName = '';
-  if (recipientData['First Name'] || recipientData['Last Name']) {
-    const firstName = recipientData['First Name'] || '';
-    const lastName = recipientData['Last Name'] || '';
-    recipientName = `${firstName} ${lastName}`.trim();
-  } else if (recipientData.Name) {
-    recipientName = recipientData.Name;
+
+  // Try to build from First Name and Last Name
+  const firstName = (recipientData['First Name'] || '').toString().trim();
+  const lastName = (recipientData['Last Name'] || '').toString().trim();
+
+  if (firstName && lastName) {
+    // Both names available
+    recipientName = `${firstName} ${lastName}`;
+  } else if (firstName) {
+    // Only first name
+    recipientName = firstName;
+  } else if (lastName) {
+    // Only last name
+    recipientName = lastName;
+  } else if (recipientData.Name && recipientData.Name.toString().trim()) {
+    // Try Name field
+    recipientName = recipientData.Name.toString().trim();
+  } else if (recipientData.Email && recipientData.Email.toString().trim()) {
+    // Use email as fallback
+    recipientName = recipientData.Email.toString().trim();
   } else {
-    recipientName = recipientData.Email || 'Recipient';
+    // Last resort
+    recipientName = 'Recipient';
   }
 
   return `${templateName} - ${recipientName}`;
@@ -192,6 +207,7 @@ function generateDocumentName(recipientData) {
 /**
  * Generate default document name (Priority 3 logic only)
  * Format: "Template Name - First Last"
+ * Handles missing First Name or Last Name gracefully
  * @param {Object} recipientData - Recipient data
  * @returns {string} Default document name
  */
@@ -210,14 +226,29 @@ function generateDefaultDocumentName(recipientData) {
 
   // Build recipient name: First Last (or just what's available)
   let recipientName = '';
-  if (recipientData['First Name'] || recipientData['Last Name']) {
-    const firstName = recipientData['First Name'] || '';
-    const lastName = recipientData['Last Name'] || '';
-    recipientName = `${firstName} ${lastName}`.trim();
-  } else if (recipientData.Name) {
-    recipientName = recipientData.Name;
+
+  // Try to build from First Name and Last Name
+  const firstName = (recipientData['First Name'] || '').toString().trim();
+  const lastName = (recipientData['Last Name'] || '').toString().trim();
+
+  if (firstName && lastName) {
+    // Both names available
+    recipientName = `${firstName} ${lastName}`;
+  } else if (firstName) {
+    // Only first name
+    recipientName = firstName;
+  } else if (lastName) {
+    // Only last name
+    recipientName = lastName;
+  } else if (recipientData.Name && recipientData.Name.toString().trim()) {
+    // Try Name field
+    recipientName = recipientData.Name.toString().trim();
+  } else if (recipientData.Email && recipientData.Email.toString().trim()) {
+    // Use email as fallback
+    recipientName = recipientData.Email.toString().trim();
   } else {
-    recipientName = recipientData.Email || 'Recipient';
+    // Last resort
+    recipientName = 'Recipient';
   }
 
   return `${templateName} - ${recipientName}`;
