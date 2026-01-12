@@ -1163,3 +1163,130 @@ function debugOrphanFiles() {
 
   return result;
 }
+
+/**
+ * Combine all recipient PDFs into a single PDF
+ * @returns {Object} Combined PDF info with pdfId, pdfUrl, and pdfName
+ */
+function combineAllPdfs() {
+  const pdfFolderId = getConfig(CONFIG_KEYS.PDF_FOLDER_ID);
+
+  if (!pdfFolderId) {
+    throw new Error('PDF Folder ID not configured.');
+  }
+
+  // Get all recipients with PDF IDs
+  const allRecipients = getAllRecipients();
+  const recipientsWithPdfs = allRecipients.filter(r => {
+    const pdfId = (r['PDF ID'] || '').toString().trim();
+    return pdfId !== '';
+  });
+
+  if (recipientsWithPdfs.length === 0) {
+    throw new Error('No PDFs found to combine. Please generate PDFs first.');
+  }
+
+  // Create a new Google Doc to combine all PDFs
+  const timestamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
+  const combinedDocName = `Combined PDFs - ${timestamp}`;
+  const combinedDoc = DocumentApp.create(combinedDocName);
+  const combinedDocId = combinedDoc.getId();
+  const body = combinedDoc.getBody();
+
+  // Clear any default content
+  body.clear();
+
+  let successCount = 0;
+  const errors = [];
+
+  // For each recipient's PDF, convert to doc and append content
+  for (let i = 0; i < recipientsWithPdfs.length; i++) {
+    const recipient = recipientsWithPdfs[i];
+    const pdfId = recipient['PDF ID'];
+
+    try {
+      // Get the PDF file
+      const pdfFile = DriveApp.getFileById(pdfId);
+
+      // Create a temporary Google Doc from the PDF
+      const tempDoc = Drive.Files.copy(
+        { title: `temp_${pdfFile.getName()}` },
+        pdfId,
+        { convert: true }
+      );
+
+      // Open the temporary doc and copy its content
+      const tempDocObj = DocumentApp.openById(tempDoc.id);
+      const tempBody = tempDocObj.getBody();
+
+      // Add page break before each PDF (except the first one)
+      if (i > 0) {
+        body.appendPageBreak();
+      }
+
+      // Add a header with recipient info
+      const recipientInfo = recipient['First Name'] || recipient['Last Name']
+        ? `${recipient['First Name'] || ''} ${recipient['Last Name'] || ''}`.trim()
+        : recipient.Email || 'Unknown';
+      const header = body.appendParagraph(`Document ${i + 1} of ${recipientsWithPdfs.length}: ${recipientInfo}`);
+      header.setHeading(DocumentApp.ParagraphHeading.HEADING2);
+      header.setForegroundColor('#666666');
+
+      // Copy all elements from temp doc to combined doc
+      const numChildren = tempBody.getNumChildren();
+      for (let j = 0; j < numChildren; j++) {
+        const element = tempBody.getChild(j);
+        const elementCopy = element.copy();
+        body.appendParagraph(''); // Add some spacing
+
+        // Append the element based on its type
+        const type = element.getType();
+        if (type === DocumentApp.ElementType.PARAGRAPH) {
+          const para = body.appendParagraph('');
+          para.merge();
+          body.appendParagraph(element.asParagraph().getText());
+        } else if (type === DocumentApp.ElementType.TABLE) {
+          body.appendTable(element.asTable().copy());
+        }
+      }
+
+      // Delete the temporary doc
+      DriveApp.getFileById(tempDoc.id).setTrashed(true);
+
+      successCount++;
+
+    } catch (error) {
+      errors.push({
+        recipient: recipient.Email || recipient.Name,
+        error: error.message
+      });
+    }
+  }
+
+  // Save and close the combined doc
+  combinedDoc.saveAndClose();
+
+  // Convert the combined doc to PDF
+  const combinedPdfName = `Combined PDFs - ${timestamp}`;
+  const result = generatePdfFromDoc(combinedDocId, pdfFolderId, combinedPdfName);
+
+  // Move the combined doc to the output folder as well
+  const docFile = DriveApp.getFileById(combinedDocId);
+  const outputFolderId = getConfig(CONFIG_KEYS.OUTPUT_FOLDER_ID);
+  if (outputFolderId) {
+    const outputFolder = DriveApp.getFolderById(outputFolderId);
+    docFile.moveTo(outputFolder);
+  }
+
+  return {
+    pdfId: result.pdfId,
+    pdfUrl: result.pdfUrl,
+    pdfName: result.pdfName,
+    docId: combinedDocId,
+    docUrl: docFile.getUrl(),
+    totalPdfs: recipientsWithPdfs.length,
+    successCount: successCount,
+    errorCount: errors.length,
+    errors: errors
+  };
+}
