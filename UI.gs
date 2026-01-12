@@ -1320,8 +1320,16 @@ function deleteOrphanFilesUI() {
 
     // Build preview message
     let previewMessage = '⚠️ PREVIEW: The following files will be deleted:\n\n';
+
+    // Show same folder mode notice
+    if (preview.sameFolderMode) {
+      previewMessage += 'ℹ️ SAME FOLDER MODE DETECTED\n';
+      previewMessage += 'Using one folder for both documents and PDFs.\n';
+      previewMessage += 'Files are protected if they appear in EITHER "Doc ID" OR "PDF ID" column.\n\n';
+    }
+
     previewMessage += `📊 Summary:\n`;
-    previewMessage += `• Total files in folders: ${totalFiles}\n`;
+    previewMessage += `• Total files in folder${preview.sameFolderMode ? '' : 's'}: ${totalFiles}\n`;
     previewMessage += `• Protected (linked to recipients): ${totalProtected}\n`;
     previewMessage += `• Orphan (will be deleted): ${totalOrphans}\n\n`;
 
@@ -1348,7 +1356,8 @@ function deleteOrphanFilesUI() {
 
     // List files to be deleted (limit to first 10 of each type)
     if (preview.documents.orphanCount > 0) {
-      previewMessage += `📄 Documents to delete (${preview.documents.orphanCount}):\n`;
+      const label = preview.sameFolderMode ? '📄 Files to delete' : '📄 Documents to delete';
+      previewMessage += `${label} (${preview.documents.orphanCount}):\n`;
       const docsToShow = preview.documents.orphanFiles.slice(0, 10);
       docsToShow.forEach(file => {
         previewMessage += `• ${file.name}\n`;
@@ -1359,7 +1368,7 @@ function deleteOrphanFilesUI() {
       previewMessage += '\n';
     }
 
-    if (preview.pdfs.orphanCount > 0) {
+    if (preview.pdfs.orphanCount > 0 && !preview.sameFolderMode) {
       previewMessage += `📕 PDFs to delete (${preview.pdfs.orphanCount}):\n`;
       const pdfsToShow = preview.pdfs.orphanFiles.slice(0, 10);
       pdfsToShow.forEach(file => {

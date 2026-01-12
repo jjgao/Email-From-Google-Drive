@@ -910,29 +910,92 @@ function deleteOrphanPdfs() {
 
 /**
  * Preview all orphan files (both documents and PDFs)
+ * Handles case where same folder is used for both
  * @returns {Object} Preview with orphan counts and file lists
  */
 function previewAllOrphanFiles() {
+  const docFolderId = getConfig(CONFIG_KEYS.OUTPUT_FOLDER_ID);
+  const pdfFolderId = getConfig(CONFIG_KEYS.PDF_FOLDER_ID);
+
   const results = {
     documents: { total: 0, orphanCount: 0, protectedCount: 0, orphanFiles: [], protectedFiles: [], validDocIdsCount: 0 },
-    pdfs: { total: 0, orphanCount: 0, protectedCount: 0, orphanFiles: [], protectedFiles: [], validPdfIdsCount: 0 }
+    pdfs: { total: 0, orphanCount: 0, protectedCount: 0, orphanFiles: [], protectedFiles: [], validPdfIdsCount: 0 },
+    sameFolderMode: false
   };
 
-  // Preview orphan documents
-  try {
-    results.documents = previewOrphanDocuments();
-  } catch (error) {
-    if (error.message !== 'Output Folder ID not configured.') {
-      throw error;
-    }
-  }
+  // Check if using same folder for both
+  const usingSameFolder = docFolderId && pdfFolderId && docFolderId === pdfFolderId;
+  results.sameFolderMode = usingSameFolder;
 
-  // Preview orphan PDFs
-  try {
-    results.pdfs = previewOrphanPdfs();
-  } catch (error) {
-    if (error.message !== 'PDF Folder ID not configured.') {
-      throw error;
+  if (usingSameFolder) {
+    // Same folder mode: scan once, consider file protected if in EITHER column
+    try {
+      const allRecipients = getAllRecipients();
+      const validDocIds = allRecipients
+        .map(r => (r['Doc ID'] || '').toString().trim())
+        .filter(id => id !== '');
+      const validPdfIds = allRecipients
+        .map(r => (r['PDF ID'] || '').toString().trim())
+        .filter(id => id !== '');
+
+      // Combine all valid IDs
+      const allValidIds = new Set([...validDocIds, ...validPdfIds]);
+
+      const folder = DriveApp.getFolderById(docFolderId);
+      const files = folder.getFiles();
+
+      const orphanFiles = [];
+      const protectedFiles = [];
+      let totalCount = 0;
+
+      while (files.hasNext()) {
+        const file = files.next();
+        const fileId = file.getId();
+        totalCount++;
+
+        const fileInfo = {
+          name: file.getName(),
+          id: fileId
+        };
+
+        if (!allValidIds.has(fileId)) {
+          orphanFiles.push(fileInfo);
+        } else {
+          protectedFiles.push(fileInfo);
+        }
+      }
+
+      results.documents = {
+        total: totalCount,
+        orphanCount: orphanFiles.length,
+        protectedCount: protectedFiles.length,
+        orphanFiles: orphanFiles,
+        protectedFiles: protectedFiles,
+        validDocIdsCount: allValidIds.size
+      };
+      // In same folder mode, pdfs results are same as documents
+      results.pdfs = { total: 0, orphanCount: 0, protectedCount: 0, orphanFiles: [], protectedFiles: [], validPdfIdsCount: 0 };
+    } catch (error) {
+      if (error.message !== 'Output Folder ID not configured.') {
+        throw error;
+      }
+    }
+  } else {
+    // Different folders: scan each separately
+    try {
+      results.documents = previewOrphanDocuments();
+    } catch (error) {
+      if (error.message !== 'Output Folder ID not configured.') {
+        throw error;
+      }
+    }
+
+    try {
+      results.pdfs = previewOrphanPdfs();
+    } catch (error) {
+      if (error.message !== 'PDF Folder ID not configured.') {
+        throw error;
+      }
     }
   }
 
@@ -941,29 +1004,89 @@ function previewAllOrphanFiles() {
 
 /**
  * Delete all orphan files (both documents and PDFs)
+ * Handles case where same folder is used for both
  * @returns {Object} Results with deleted counts
  */
 function deleteAllOrphanFiles() {
+  const docFolderId = getConfig(CONFIG_KEYS.OUTPUT_FOLDER_ID);
+  const pdfFolderId = getConfig(CONFIG_KEYS.PDF_FOLDER_ID);
+
   const results = {
     documents: { total: 0, deleted: 0, files: [], validDocIdsCount: 0 },
-    pdfs: { total: 0, deleted: 0, files: [], validPdfIdsCount: 0 }
+    pdfs: { total: 0, deleted: 0, files: [], validPdfIdsCount: 0 },
+    sameFolderMode: false
   };
 
-  // Delete orphan documents
-  try {
-    results.documents = deleteOrphanDocuments();
-  } catch (error) {
-    if (error.message !== 'Output Folder ID not configured.') {
-      throw error;
-    }
-  }
+  // Check if using same folder for both
+  const usingSameFolder = docFolderId && pdfFolderId && docFolderId === pdfFolderId;
+  results.sameFolderMode = usingSameFolder;
 
-  // Delete orphan PDFs
-  try {
-    results.pdfs = deleteOrphanPdfs();
-  } catch (error) {
-    if (error.message !== 'PDF Folder ID not configured.') {
-      throw error;
+  if (usingSameFolder) {
+    // Same folder mode: scan once, delete if NOT in EITHER column
+    try {
+      const allRecipients = getAllRecipients();
+      const validDocIds = allRecipients
+        .map(r => (r['Doc ID'] || '').toString().trim())
+        .filter(id => id !== '');
+      const validPdfIds = allRecipients
+        .map(r => (r['PDF ID'] || '').toString().trim())
+        .filter(id => id !== '');
+
+      // Combine all valid IDs
+      const allValidIds = new Set([...validDocIds, ...validPdfIds]);
+
+      const folder = DriveApp.getFolderById(docFolderId);
+      const files = folder.getFiles();
+
+      let deletedCount = 0;
+      const deletedFiles = [];
+      let totalCount = 0;
+
+      while (files.hasNext()) {
+        const file = files.next();
+        const fileId = file.getId();
+        totalCount++;
+
+        // If file ID is not in ANY valid ID set, it's an orphan
+        if (!allValidIds.has(fileId)) {
+          deletedFiles.push({
+            name: file.getName(),
+            id: fileId
+          });
+          file.setTrashed(true);
+          deletedCount++;
+        }
+      }
+
+      results.documents = {
+        total: totalCount,
+        deleted: deletedCount,
+        files: deletedFiles,
+        validDocIdsCount: allValidIds.size
+      };
+      // In same folder mode, pdfs results are empty
+      results.pdfs = { total: 0, deleted: 0, files: [], validPdfIdsCount: 0 };
+    } catch (error) {
+      if (error.message !== 'Output Folder ID not configured.') {
+        throw error;
+      }
+    }
+  } else {
+    // Different folders: delete from each separately
+    try {
+      results.documents = deleteOrphanDocuments();
+    } catch (error) {
+      if (error.message !== 'Output Folder ID not configured.') {
+        throw error;
+      }
+    }
+
+    try {
+      results.pdfs = deleteOrphanPdfs();
+    } catch (error) {
+      if (error.message !== 'PDF Folder ID not configured.') {
+        throw error;
+      }
     }
   }
 
