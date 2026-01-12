@@ -35,7 +35,9 @@ function onOpen() {
       .addItem('Setup via Dialog (Legacy)', 'showConfigDialog')
       .addItem('Clear Configuration', 'clearConfigUI')
       .addItem('Ensure Status Column', 'ensureStatusColumnUI')
-      .addItem('🗑️ Delete Orphan Files', 'deleteOrphanFilesUI'))
+      .addSeparator()
+      .addItem('🗑️ Delete Orphan Files', 'deleteOrphanFilesUI')
+      .addItem('🔍 Debug Orphan Files', 'debugOrphanFilesUI'))
     .addToUi();
 }
 
@@ -1426,5 +1428,87 @@ function deleteOrphanFilesUI() {
   } catch (error) {
     SpreadsheetApp.getActiveSpreadsheet().toast('Failed to delete orphan files', 'Error', 3);
     ui.alert('Error', `Failed to delete orphan files:\n\n${error.message}`, ui.ButtonSet.OK);
+  }
+}
+
+/**
+ * Debug orphan files - show detailed file and recipient ID mapping
+ */
+function debugOrphanFilesUI() {
+  const ui = SpreadsheetApp.getUi();
+
+  try {
+    SpreadsheetApp.getActiveSpreadsheet().toast('Gathering diagnostic information...', 'Processing', -1);
+
+    const debug = debugOrphanFiles();
+
+    SpreadsheetApp.getActiveSpreadsheet().toast('Analysis complete', 'Done', 2);
+
+    // Build diagnostic message
+    let message = '🔍 ORPHAN FILES DIAGNOSTIC\n\n';
+
+    // Recipients section
+    message += `📋 RECIPIENTS (${debug.recipients.length}):\n`;
+    debug.recipients.forEach((r, i) => {
+      message += `${i + 1}. ${r.email}\n`;
+      message += `   Doc ID: ${r.docId || '(empty)'}\n`;
+      message += `   PDF ID: ${r.pdfId || '(empty)'}\n`;
+    });
+    message += '\n';
+
+    // Document folder section
+    message += `📄 DOCUMENT FOLDER (${debug.documentFolder.files.length} files):\n`;
+    if (debug.documentFolder.error) {
+      message += `   Error: ${debug.documentFolder.error}\n`;
+    } else if (debug.documentFolder.files.length === 0) {
+      message += '   (empty)\n';
+    } else {
+      debug.documentFolder.files.forEach((f, i) => {
+        const isProtected = debug.recipients.some(r => r.docId === f.id);
+        message += `${i + 1}. ${f.name}\n`;
+        message += `   ID: ${f.id}\n`;
+        message += `   Status: ${isProtected ? '✅ Protected' : '⚠️ ORPHAN'}\n`;
+      });
+    }
+    message += '\n';
+
+    // PDF folder section
+    message += `📕 PDF FOLDER (${debug.pdfFolder.files.length} files):\n`;
+    if (debug.pdfFolder.error) {
+      message += `   Error: ${debug.pdfFolder.error}\n`;
+    } else if (debug.pdfFolder.files.length === 0) {
+      message += '   (empty)\n';
+    } else {
+      debug.pdfFolder.files.forEach((f, i) => {
+        const isProtected = debug.recipients.some(r => r.pdfId === f.id);
+        message += `${i + 1}. ${f.name}\n`;
+        message += `   ID: ${f.id}\n`;
+        message += `   Status: ${isProtected ? '✅ Protected' : '⚠️ ORPHAN'}\n`;
+      });
+    }
+
+    // Summary
+    const docOrphans = debug.documentFolder.files.filter(f =>
+      !debug.recipients.some(r => r.docId === f.id)
+    ).length;
+    const pdfOrphans = debug.pdfFolder.files.filter(f =>
+      !debug.recipients.some(r => r.pdfId === f.id)
+    ).length;
+
+    message += '\n📊 SUMMARY:\n';
+    message += `• Document orphans: ${docOrphans}\n`;
+    message += `• PDF orphans: ${pdfOrphans}\n`;
+    message += `• Total orphans: ${docOrphans + pdfOrphans}\n`;
+
+    // Log to console for copy/paste
+    Logger.log(message);
+    Logger.log('Full debug data:');
+    Logger.log(JSON.stringify(debug, null, 2));
+
+    ui.alert('Orphan Files Diagnostic', message, ui.ButtonSet.OK);
+
+  } catch (error) {
+    SpreadsheetApp.getActiveSpreadsheet().toast('Failed to run diagnostic', 'Error', 3);
+    ui.alert('Error', `Failed to run diagnostic:\n\n${error.message}`, ui.ButtonSet.OK);
   }
 }

@@ -969,3 +969,68 @@ function deleteAllOrphanFiles() {
 
   return results;
 }
+
+/**
+ * Debug function: Show detailed file and recipient ID mapping
+ * Helps diagnose orphan file issues
+ * @returns {Object} Detailed diagnostic information
+ */
+function debugOrphanFiles() {
+  const result = {
+    recipients: [],
+    documentFolder: { files: [], folderUrl: '' },
+    pdfFolder: { files: [], folderUrl: '' }
+  };
+
+  // Get all recipients with their IDs
+  const allRecipients = getAllRecipients();
+  result.recipients = allRecipients.map(r => ({
+    email: r.Email || '',
+    docId: (r['Doc ID'] || '').toString().trim(),
+    pdfId: (r['PDF ID'] || '').toString().trim()
+  }));
+
+  // Get document folder files
+  try {
+    const docFolderId = getConfig(CONFIG_KEYS.OUTPUT_FOLDER_ID);
+    if (docFolderId) {
+      const docFolder = DriveApp.getFolderById(docFolderId);
+      result.documentFolder.folderUrl = docFolder.getUrl();
+
+      const docFiles = docFolder.getFiles();
+      while (docFiles.hasNext()) {
+        const file = docFiles.next();
+        result.documentFolder.files.push({
+          name: file.getName(),
+          id: file.getId(),
+          url: file.getUrl()
+        });
+      }
+    }
+  } catch (error) {
+    result.documentFolder.error = error.message;
+  }
+
+  // Get PDF folder files
+  try {
+    const pdfFolderId = getConfig(CONFIG_KEYS.PDF_FOLDER_ID);
+    if (pdfFolderId) {
+      const pdfFolder = DriveApp.getFolderById(pdfFolderId);
+      result.pdfFolder.folderUrl = pdfFolder.getUrl();
+
+      const pdfFiles = pdfFolder.getFiles();
+      while (pdfFiles.hasNext()) {
+        const file = pdfFiles.next();
+        result.pdfFolder.files.push({
+          name: file.getName(),
+          id: file.getId(),
+          url: file.getUrl()
+        });
+      }
+    }
+  } catch (error) {
+    result.pdfFolder.error = error.message;
+  }
+
+  return result;
+}
