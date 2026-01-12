@@ -21,7 +21,7 @@ const DEFAULT_VALUES = {
   RECIPIENT_SHEET_NAME: 'Recipients',
   LOG_SHEET_NAME: 'Email Logs',
   EMAIL_SUBJECT: 'Message from {{Name}}',
-  DOCUMENT_NAME_TEMPLATE: '{{Last Name}}, {{First Name}}'
+  DOCUMENT_NAME_TEMPLATE: ''  // Empty by default - will use "Template Name - First Last" format
 };
 
 const CONFIG_SHEET_NAME = 'Config';
@@ -51,7 +51,7 @@ const CONFIG_DESCRIPTIONS = {
   REPLY_TO_EMAIL: 'Email address for replies',
   EMAIL_SUBJECT: 'Subject line (can use {{placeholders}})',
   TEST_EMAIL: 'Your email address for testing',
-  DOCUMENT_NAME_TEMPLATE: 'Template for generated document filenames (use {{placeholders}}). Can be overridden by "Filename" column in Recipients sheet.'
+  DOCUMENT_NAME_TEMPLATE: 'Template for generated document filenames (use {{placeholders}}). Leave empty to use default format: "Template Name - First Last". Can be overridden by "Filename" column in Recipients sheet.'
 };
 
 /**
