@@ -190,6 +190,126 @@ function generateDocumentName(recipientData) {
 }
 
 /**
+ * Generate default document name (Priority 3 logic only)
+ * Format: "Template Name - First Last"
+ * @param {Object} recipientData - Recipient data
+ * @returns {string} Default document name
+ */
+function generateDefaultDocumentName(recipientData) {
+  // Get template name
+  let templateName = 'Document';
+  try {
+    const templateDocId = getConfig(CONFIG_KEYS.PDF_TEMPLATE_DOC_ID);
+    if (templateDocId) {
+      const templateFile = DriveApp.getFileById(templateDocId);
+      templateName = templateFile.getName();
+    }
+  } catch (error) {
+    // Use default if template not found
+  }
+
+  // Build recipient name: First Last (or just what's available)
+  let recipientName = '';
+  if (recipientData['First Name'] || recipientData['Last Name']) {
+    const firstName = recipientData['First Name'] || '';
+    const lastName = recipientData['Last Name'] || '';
+    recipientName = `${firstName} ${lastName}`.trim();
+  } else if (recipientData.Name) {
+    recipientName = recipientData.Name;
+  } else {
+    recipientName = recipientData.Email || 'Recipient';
+  }
+
+  return `${templateName} - ${recipientName}`;
+}
+
+/**
+ * Fill default filenames for all recipients
+ * Creates Filename column if it doesn't exist
+ * @returns {Object} Results with total, filled count, and samples
+ */
+function fillDefaultFilenames() {
+  try {
+    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    const recipientSheetName = getConfig(CONFIG_KEYS.RECIPIENT_SHEET_NAME);
+    const sheet = spreadsheet.getSheetByName(recipientSheetName);
+
+    if (!sheet) {
+      throw new Error(`Recipient sheet "${recipientSheetName}" not found`);
+    }
+
+    // Get headers
+    const lastColumn = sheet.getLastColumn();
+    const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
+
+    // Find or create Filename column
+    let filenameColIndex = headers.indexOf('Filename');
+    if (filenameColIndex === -1) {
+      // Filename column doesn't exist, add it
+      // Insert after ZIP column (column 8) if possible
+      const zipColIndex = headers.indexOf('ZIP');
+      if (zipColIndex !== -1) {
+        sheet.insertColumnAfter(zipColIndex + 1);
+        filenameColIndex = zipColIndex + 1;
+      } else {
+        // Otherwise add at the end
+        sheet.insertColumnAfter(lastColumn);
+        filenameColIndex = lastColumn;
+      }
+
+      // Set header
+      sheet.getRange(1, filenameColIndex + 1).setValue('Filename');
+
+      // Format header to match others
+      const headerCell = sheet.getRange(1, filenameColIndex + 1);
+      headerCell.setFontWeight('bold');
+      headerCell.setBackground('#4285f4');
+      headerCell.setFontColor('#ffffff');
+
+      // Set column width
+      sheet.setColumnWidth(filenameColIndex + 1, 200);
+    }
+
+    // Get all recipients
+    const allRecipients = getAllRecipientsFormatted();
+    const results = {
+      total: allRecipients.length,
+      filled: 0,
+      sample: []
+    };
+
+    // Generate and fill filenames
+    for (let i = 0; i < allRecipients.length; i++) {
+      const recipient = allRecipients[i];
+      const defaultFilename = generateDefaultDocumentName(recipient.data);
+
+      // Write to sheet (row is i+2 because row 1 is headers and array is 0-indexed)
+      const rowIndex = i + 2;
+      sheet.getRange(rowIndex, filenameColIndex + 1).setValue(defaultFilename);
+
+      results.filled++;
+
+      // Collect samples
+      if (results.sample.length < 10) {
+        results.sample.push({
+          email: recipient.email,
+          filename: defaultFilename
+        });
+      }
+    }
+
+    // Log the operation
+    logInfo('FILENAME_FILL', `Filled default filenames for ${results.filled} recipients`);
+
+    return results;
+
+  } catch (error) {
+    logError('FILENAME_FILL', error.message);
+    throw error;
+  }
+}
+
+/**
  * Clean up orphaned punctuation in Google Doc after placeholder replacement
  * Note: Google Apps Script's replaceText() doesn't support lookahead assertions
  * @param {GoogleAppsScript.Document.Body} body - Document body

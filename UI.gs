@@ -21,6 +21,7 @@ function onOpen() {
     .addItem('🔄 Regenerate All Documents', 'regenerateAllDocumentsUI')
     .addItem('📕 Generate All PDFs', 'generateAllPdfsUI')
     .addItem('🔄 Regenerate All PDFs', 'regenerateAllPdfsUI')
+    .addItem('✏️ Fill Default Filenames', 'fillDefaultFilenamesUI')
     .addSeparator()
     // Email Campaign
     .addItem('📧 Send Test Email', 'sendTestEmailUI')
@@ -494,7 +495,7 @@ function createSampleDataUI() {
     }
 
     // Add headers
-    const headers = ['Email', 'First Name', 'Last Name', 'Address1', 'Address2', 'City', 'State', 'ZIP', 'Filename', 'Status', 'Doc ID', 'PDF ID', 'Attachment IDs'];
+    const headers = ['Email', 'First Name', 'Last Name', 'Address1', 'Address2', 'City', 'State', 'ZIP', 'Status', 'Doc ID', 'PDF ID', 'Attachment IDs'];
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
 
     // Format headers
@@ -505,23 +506,13 @@ function createSampleDataUI() {
 
     // Add sample data
     // Note: Third recipient has missing City field to test validation
-    // Note: Filename column will use formula to demonstrate dynamic naming
     const sampleData = [
-      ['your-email@example.com', 'John', 'Doe', '123 Main Street', 'Apt 4B', 'New York', 'NY', '10001', '', 'pending', '', '', ''],
-      ['another-email@example.com', 'Jane', 'Smith', '456 Oak Avenue', '', 'Los Angeles', 'CA', '90001', '', 'pending', '', '', ''],
-      ['third-email@example.com', 'Bob', 'Johnson', '789 Pine Road', 'Suite 200', '', 'IL', '60601', '', 'pending', '', '', '']
+      ['your-email@example.com', 'John', 'Doe', '123 Main Street', 'Apt 4B', 'New York', 'NY', '10001', 'pending', '', '', ''],
+      ['another-email@example.com', 'Jane', 'Smith', '456 Oak Avenue', '', 'Los Angeles', 'CA', '90001', 'pending', '', '', ''],
+      ['third-email@example.com', 'Bob', 'Johnson', '789 Pine Road', 'Suite 200', '', 'IL', '60601', 'pending', '', '', '']
     ];
 
     sheet.getRange(2, 1, sampleData.length, headers.length).setValues(sampleData);
-
-    // Set formula for Filename column (column 9) - demonstrates dynamic naming
-    // Formula: "Custom Doc Name" with each name component added only if it exists
-    const filenameFormulas = [
-      ['="Custom Doc Name" & IF(B2<>"", " - " & B2, "") & IF(C2<>"", " - " & C2, "")'],
-      ['="Custom Doc Name" & IF(B3<>"", " - " & B3, "") & IF(C3<>"", " - " & C3, "")'],
-      ['="Custom Doc Name" & IF(B4<>"", " - " & B4, "") & IF(C4<>"", " - " & C4, "")']
-    ];
-    sheet.getRange(2, 9, filenameFormulas.length, 1).setFormulas(filenameFormulas);
 
     // Set column widths
     sheet.setColumnWidth(1, 220); // Email
@@ -532,11 +523,10 @@ function createSampleDataUI() {
     sheet.setColumnWidth(6, 120); // City
     sheet.setColumnWidth(7, 60);  // State
     sheet.setColumnWidth(8, 80);  // ZIP
-    sheet.setColumnWidth(9, 200); // Filename
-    sheet.setColumnWidth(10, 100); // Status
-    sheet.setColumnWidth(11, 300); // Doc ID
-    sheet.setColumnWidth(12, 300); // PDF ID
-    sheet.setColumnWidth(13, 350); // Attachment IDs
+    sheet.setColumnWidth(9, 100); // Status
+    sheet.setColumnWidth(10, 300); // Doc ID
+    sheet.setColumnWidth(11, 300); // PDF ID
+    sheet.setColumnWidth(12, 350); // Attachment IDs
 
     // Freeze header row
     sheet.setFrozenRows(1);
@@ -548,11 +538,10 @@ function createSampleDataUI() {
       'Success',
       `Sample recipient sheet "${recipientSheetName}" created with 3 test recipients.\n\n` +
       'IMPORTANT: Please replace the sample email addresses with valid test emails before sending!\n\n' +
-      'NOTE: The Filename column uses a formula to demonstrate dynamic naming: "Custom Doc Name - First Name - Last Name". You can modify or remove this formula as needed.\n\n' +
       'NOTE: The third recipient (Bob Johnson) has a missing City field to test validation. Document generation will skip this recipient if City is used in your template.\n\n' +
-      'TIP: Use the "Filename" column to customize document names per recipient (overrides template config). Can use formulas or static text.\n\n' +
+      'TIP: Use the "Filename" column to customize document names per recipient (overrides template config). Add a "Filename" column if you want custom naming.\n\n' +
       'TIP: Use the "Attachment IDs" column to attach additional files to emails (comma-separated Drive file IDs). PDFs are auto-attached when PDF ID exists.\n\n' +
-      'Fields included: First Name, Last Name, Address1, Address2, City, State, ZIP, Filename (optional)\n\n' +
+      'Fields included: First Name, Last Name, Address1, Address2, City, State, ZIP\n\n' +
       'You can edit the data directly in the sheet.',
       ui.ButtonSet.OK
     );
@@ -1519,5 +1508,69 @@ function debugOrphanFilesUI() {
   } catch (error) {
     SpreadsheetApp.getActiveSpreadsheet().toast('Failed to run diagnostic', 'Error', 3);
     ui.alert('Error', `Failed to run diagnostic:\n\n${error.message}`, ui.ButtonSet.OK);
+  }
+}
+
+/**
+ * Fill default filenames for all recipients (UI wrapper)
+ */
+function fillDefaultFilenamesUI() {
+  const ui = SpreadsheetApp.getUi();
+
+  try {
+    // Get all recipients
+    const allRecipients = getAllRecipientsFormatted();
+
+    if (allRecipients.length === 0) {
+      ui.alert(
+        'No Recipients',
+        'No recipients found in the sheet.',
+        ui.ButtonSet.OK
+      );
+      return;
+    }
+
+    const response = ui.alert(
+      'Fill Default Filenames',
+      `This will generate default filenames for all ${allRecipients.length} recipient(s).\n\n` +
+      'Default format: "Template Name - First Last"\n' +
+      'Example: "Sample PDF Template - John Doe"\n\n' +
+      'If the "Filename" column doesn\'t exist, it will be created.\n' +
+      'Existing custom filenames will be overwritten.\n\n' +
+      'Continue?',
+      ui.ButtonSet.YES_NO
+    );
+
+    if (response !== ui.Button.YES) {
+      return;
+    }
+
+    SpreadsheetApp.getActiveSpreadsheet().toast('Generating default filenames...', 'Processing', -1);
+
+    const results = fillDefaultFilenames();
+
+    SpreadsheetApp.getActiveSpreadsheet().toast('Filenames filled!', 'Success', 3);
+
+    // Show results
+    let message = `✅ Default filenames have been generated:\n\n`;
+    message += `Recipients processed: ${results.total}\n`;
+    message += `Filenames filled: ${results.filled}\n\n`;
+
+    if (results.sample && results.sample.length > 0) {
+      message += 'Sample filenames:\n';
+      const samplesToShow = results.sample.slice(0, 5);
+      samplesToShow.forEach(s => {
+        message += `• ${s.email}: "${s.filename}"\n`;
+      });
+      if (results.sample.length > 5) {
+        message += `... and ${results.sample.length - 5} more\n`;
+      }
+    }
+
+    ui.alert('Filenames Generated', message, ui.ButtonSet.OK);
+
+  } catch (error) {
+    SpreadsheetApp.getActiveSpreadsheet().toast('Failed to fill filenames', 'Error', 3);
+    ui.alert('Error', `Failed to fill filenames:\n\n${error.message}`, ui.ButtonSet.OK);
   }
 }
