@@ -347,6 +347,9 @@ function createFirstDocument() {
     throw new Error(`Missing required configuration: ${validation.missing.join(', ')}`);
   }
 
+  // Ensure required columns exist before proceeding
+  ensureRequiredColumns();
+
   const templateDocId = getConfig(CONFIG_KEYS.PDF_TEMPLATE_DOC_ID);
   const folderId = getConfig(CONFIG_KEYS.OUTPUT_FOLDER_ID);
 
@@ -508,6 +511,9 @@ function createAllDocuments() {
   if (!validation.isValid) {
     throw new Error(`Missing required configuration: ${validation.missing.join(', ')}`);
   }
+
+  // Ensure required columns exist before proceeding
+  ensureRequiredColumns();
 
   const templateDocId = getConfig(CONFIG_KEYS.PDF_TEMPLATE_DOC_ID);
   const folderId = getConfig(CONFIG_KEYS.OUTPUT_FOLDER_ID);
@@ -869,6 +875,9 @@ function regenerateAllDocuments() {
   if (!validation.isValid) {
     throw new Error(`Missing required configuration: ${validation.missing.join(', ')}`);
   }
+
+  // Ensure required columns exist before proceeding
+  ensureRequiredColumns();
 
   const templateDocId = getConfig(CONFIG_KEYS.PDF_TEMPLATE_DOC_ID);
   const folderId = getConfig(CONFIG_KEYS.OUTPUT_FOLDER_ID);
