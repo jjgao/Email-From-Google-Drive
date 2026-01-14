@@ -25,7 +25,9 @@ function onOpen() {
       .addItem('⚙️ Open Config Sheet', 'openConfigSheetUI')
       .addItem('📋 Create Sample Data', 'createSampleDataUI')
       .addItem('📧 Create Sample Email Template', 'createSampleEmailTemplateUI')
-      .addItem('📄 Create Sample PDF Template', 'createSamplePdfTemplateUI'))
+      .addItem('📄 Create Sample PDF Template', 'createSamplePdfTemplateUI')
+      .addSeparator()
+      .addItem('🔧 Ensure Required Columns', 'ensureRequiredColumnsUI'))
     // Testing Submenu
     .addSubMenu(ui.createMenu('Testing')
       .addItem('📧 Send Test Email', 'sendTestEmailUI')
@@ -429,6 +431,59 @@ function ensureStatusColumnUI() {
     SpreadsheetApp.getUi().alert('Success', 'Status column has been added or already exists.', SpreadsheetApp.getUi().ButtonSet.OK);
   } catch (error) {
     SpreadsheetApp.getUi().alert('Error', error.message, SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * Ensure all required columns exist (Filename, Status, Doc ID, PDF ID) and fill defaults (UI wrapper)
+ */
+function ensureRequiredColumnsUI() {
+  const ui = SpreadsheetApp.getUi();
+
+  try {
+    // Confirm before proceeding
+    const response = ui.alert(
+      'Ensure Required Columns',
+      'This will:\n\n' +
+      '1. Create missing columns: Filename, Status, Doc ID, PDF ID\n' +
+      '2. Fill empty Filename cells with default names (Template Name - First Last)\n' +
+      '3. Fill empty Status cells with "pending"\n\n' +
+      'Existing values will NOT be overwritten.\n\n' +
+      'Continue?',
+      ui.ButtonSet.YES_NO
+    );
+
+    if (response !== ui.Button.YES) {
+      return;
+    }
+
+    SpreadsheetApp.getActiveSpreadsheet().toast('Processing...', 'Ensuring Required Columns', -1);
+
+    const results = ensureRequiredColumns();
+
+    SpreadsheetApp.getActiveSpreadsheet().toast('Done!', 'Complete', 3);
+
+    // Build result message
+    let message = '✅ Required columns ensured!\n\n';
+
+    if (results.columnsCreated.length > 0) {
+      message += `📋 Columns created: ${results.columnsCreated.join(', ')}\n`;
+    } else {
+      message += '📋 All required columns already exist\n';
+    }
+
+    message += `\n📝 Filenames filled: ${results.filenamesFilled}`;
+    message += `\n📊 Statuses set to "pending": ${results.statusesFilled}`;
+
+    if (results.filenamesFilled === 0 && results.statusesFilled === 0 && results.columnsCreated.length === 0) {
+      message = '✅ All required columns exist and all values are already filled.\n\nNo changes were made.';
+    }
+
+    ui.alert('Complete', message, ui.ButtonSet.OK);
+
+  } catch (error) {
+    SpreadsheetApp.getActiveSpreadsheet().toast('Failed', 'Error', 3);
+    ui.alert('Error', `Failed to ensure required columns:\n\n${error.message}`, ui.ButtonSet.OK);
   }
 }
 

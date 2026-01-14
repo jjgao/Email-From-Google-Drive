@@ -170,6 +170,114 @@ function ensureStatusColumn() {
 }
 
 /**
+ * Ensure all required columns exist: Filename, Status, Doc ID, PDF ID
+ * Creates missing columns and fills default values
+ * @returns {Object} Results with columns created and values filled
+ */
+function ensureRequiredColumns() {
+  const sheet = getRecipientSheet();
+  const lastColumn = sheet.getLastColumn();
+  const lastRow = sheet.getLastRow();
+  const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
+
+  const results = {
+    columnsCreated: [],
+    filenamesFilled: 0,
+    statusesFilled: 0
+  };
+
+  // Define required columns in order they should appear
+  const requiredColumns = ['Filename', 'Status', 'Doc ID', 'PDF ID'];
+
+  // Track current headers (will be updated as we add columns)
+  let currentHeaders = [...headers];
+  let currentLastColumn = lastColumn;
+
+  // Create missing columns
+  for (const colName of requiredColumns) {
+    if (currentHeaders.indexOf(colName) === -1) {
+      // Add column at the end
+      currentLastColumn++;
+      const headerCell = sheet.getRange(1, currentLastColumn);
+      headerCell.setValue(colName);
+
+      // Format header to match others
+      headerCell.setFontWeight('bold');
+      headerCell.setBackground('#4285f4');
+      headerCell.setFontColor('#ffffff');
+
+      // Set column width based on column type
+      if (colName === 'Filename') {
+        sheet.setColumnWidth(currentLastColumn, 200);
+      } else if (colName === 'Status') {
+        sheet.setColumnWidth(currentLastColumn, 80);
+      } else {
+        sheet.setColumnWidth(currentLastColumn, 120);
+      }
+
+      currentHeaders.push(colName);
+      results.columnsCreated.push(colName);
+    }
+  }
+
+  // If no data rows, just return
+  if (lastRow < 2) {
+    return results;
+  }
+
+  // Refresh headers after adding columns
+  const updatedLastColumn = sheet.getLastColumn();
+  const updatedHeaders = sheet.getRange(1, 1, 1, updatedLastColumn).getValues()[0];
+
+  // Get column indices
+  const filenameColIndex = updatedHeaders.indexOf('Filename') + 1;
+  const statusColIndex = updatedHeaders.indexOf('Status') + 1;
+
+  // Get all data for processing
+  const dataRange = sheet.getRange(2, 1, lastRow - 1, updatedLastColumn);
+  const allData = dataRange.getValues();
+
+  // Process each row
+  for (let i = 0; i < allData.length; i++) {
+    const row = allData[i];
+    const rowIndex = i + 2; // Account for header row and 0-based index
+
+    // Check if this row has an email (valid row)
+    const emailColIndex = updatedHeaders.indexOf('Email');
+    if (emailColIndex === -1 || !row[emailColIndex] || row[emailColIndex].toString().trim() === '') {
+      continue; // Skip empty rows
+    }
+
+    // Build recipient data object for this row
+    const recipientData = {};
+    for (let j = 0; j < updatedHeaders.length; j++) {
+      recipientData[updatedHeaders[j]] = row[j];
+    }
+
+    // Fill Filename if empty
+    if (filenameColIndex > 0) {
+      const currentFilename = row[filenameColIndex - 1];
+      if (!currentFilename || currentFilename.toString().trim() === '') {
+        const defaultFilename = generateDefaultDocumentName(recipientData);
+        sheet.getRange(rowIndex, filenameColIndex).setValue(defaultFilename);
+        results.filenamesFilled++;
+      }
+    }
+
+    // Fill Status if empty
+    if (statusColIndex > 0) {
+      const currentStatus = row[statusColIndex - 1];
+      if (!currentStatus || currentStatus.toString().trim() === '') {
+        sheet.getRange(rowIndex, statusColIndex).setValue('pending');
+        results.statusesFilled++;
+      }
+    }
+  }
+
+  return results;
+}
+
+/**
  * Validate recipient data
  * @param {Object} recipient - Recipient object
  * @returns {Object} Object with isValid boolean and error message
