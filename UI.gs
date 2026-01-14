@@ -10,11 +10,10 @@ function onOpen() {
   const ui = SpreadsheetApp.getUi();
 
   ui.createMenu('Email Campaign')
-    // Top Level - Most Frequently Used Operations
-    .addItem('🚀 Send Campaign', 'sendCampaignUI')
-    .addItem('⚡ Generate PDFs & Send', 'generatePdfsAndSendCampaignUI')
+    // Top Level - Document & PDF Generation
     .addItem('📑 Create All Documents', 'createAllDocumentsUI')
     .addItem('📕 Generate All PDFs', 'generateAllPdfsUI')
+    .addItem('🚀 Send Campaign', 'sendCampaignUI')
     .addSeparator()
     // Reports & Monitoring
     .addItem('📊 View Logs', 'openLogSheet')
@@ -259,106 +258,6 @@ function sendCampaignUI() {
   } catch (error) {
     SpreadsheetApp.getActiveSpreadsheet().toast('Error occurred', 'Campaign Progress', 3);
     ui.alert('Error', `Campaign failed:\n\n${error.message}`, ui.ButtonSet.OK);
-  }
-}
-
-/**
- * Generate PDFs and send campaign in one workflow (UI wrapper)
- */
-function generatePdfsAndSendCampaignUI() {
-  const ui = SpreadsheetApp.getUi();
-
-  // Check configuration first
-  const validation = validateConfig();
-  if (!validation.isValid) {
-    ui.alert('Configuration Required', `Please configure the following:\n\n${validation.missing.join('\n')}`, ui.ButtonSet.OK);
-    return;
-  }
-
-  // Check PDF folder
-  const pdfFolderId = getConfig(CONFIG_KEYS.PDF_FOLDER_ID);
-  if (!pdfFolderId) {
-    ui.alert(
-      'PDF Folder Not Configured',
-      'This workflow requires PDF Folder ID to be configured.\n\nPlease set it in the Config sheet.',
-      ui.ButtonSet.OK
-    );
-    return;
-  }
-
-  // Get pending recipient count
-  try {
-    const summary = getRecipientSummary();
-
-    if (summary.pending === 0) {
-      ui.alert('No Pending Recipients', 'All emails have already been sent or there are no recipients.', ui.ButtonSet.OK);
-      return;
-    }
-
-    // Check quota
-    const quota = getQuotaInfo();
-    if (quota.remaining < summary.pending) {
-      ui.alert(
-        'Quota Warning',
-        `You have ${quota.remaining} emails remaining in your daily quota, but ${summary.pending} emails to send.\n\nPlease reduce recipients or wait until tomorrow.`,
-        ui.ButtonSet.OK
-      );
-      return;
-    }
-
-    // Confirm send
-    const response = ui.alert(
-      'Generate PDFs & Send Campaign',
-      `This will:\n` +
-      `1. Generate PDFs for ${summary.pending} recipient(s) with documents\n` +
-      `2. Send campaign emails with PDFs attached\n\n` +
-      `Quota remaining: ${quota.remaining}\n\n` +
-      `This action cannot be undone. Continue?`,
-      ui.ButtonSet.YES_NO
-    );
-
-    if (response === ui.Button.YES) {
-      // Show progress message
-      SpreadsheetApp.getActiveSpreadsheet().toast('Generating PDFs and sending emails...', 'Workflow Progress', -1);
-
-      const results = generatePdfsAndSendCampaign();
-
-      // Log summary
-      logCampaignSummary(results.campaign);
-
-      // Hide progress
-      SpreadsheetApp.getActiveSpreadsheet().toast('Complete!', 'Workflow Progress', 3);
-
-      // Show results
-      let message = `Workflow Complete!\n\n`;
-      message += `PDF GENERATION:\n`;
-      message += `Generated: ${results.pdfGeneration.success}\n`;
-      message += `Failed: ${results.pdfGeneration.failed}\n`;
-      message += `Skipped: ${results.pdfGeneration.skipped}\n\n`;
-
-      message += `EMAIL CAMPAIGN:\n`;
-      message += `Sent: ${results.campaign.success}\n`;
-      message += `Failed: ${results.campaign.failed}\n`;
-      message += `Total: ${results.campaign.total}\n`;
-
-      if (results.campaign.failed > 0) {
-        message += `\nFirst few errors:\n`;
-        const errorPreview = results.campaign.errors.slice(0, 3);
-        errorPreview.forEach(err => {
-          message += `- ${err.email}: ${err.error}\n`;
-        });
-
-        if (results.campaign.errors.length > 3) {
-          message += `\n(and ${results.campaign.errors.length - 3} more - check logs)`;
-        }
-      }
-
-      ui.alert('Workflow Results', message, ui.ButtonSet.OK);
-    }
-
-  } catch (error) {
-    SpreadsheetApp.getActiveSpreadsheet().toast('Error occurred', 'Workflow Progress', 3);
-    ui.alert('Error', `Workflow failed:\n\n${error.message}`, ui.ButtonSet.OK);
   }
 }
 
