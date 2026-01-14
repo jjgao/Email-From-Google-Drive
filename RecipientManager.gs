@@ -176,15 +176,21 @@ function ensureStatusColumn() {
  */
 function ensureRequiredColumns() {
   const sheet = getRecipientSheet();
-  const lastColumn = sheet.getLastColumn();
+  let lastColumn = sheet.getLastColumn();
   const lastRow = sheet.getLastRow();
-  const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
 
   const results = {
     columnsCreated: [],
     filenamesFilled: 0,
     statusesFilled: 0
   };
+
+  // Handle empty sheet (no columns)
+  if (lastColumn === 0) {
+    throw new Error('Recipient sheet has no columns. Please add at least an Email column first.');
+  }
+
+  const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
 
   // Define required columns in order they should appear
   const requiredColumns = ['Filename', 'Status', 'Doc ID', 'PDF ID'];
@@ -219,6 +225,9 @@ function ensureRequiredColumns() {
       results.columnsCreated.push(colName);
     }
   }
+
+  // Flush changes to ensure columns are created before reading
+  SpreadsheetApp.flush();
 
   // If no data rows, just return
   if (lastRow < 2) {
