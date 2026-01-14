@@ -1270,17 +1270,8 @@ function regenerateAllPdfsUI() {
   const ui = SpreadsheetApp.getUi();
 
   try {
-    // Check if PDF folder is configured
-    const pdfFolderId = getConfig(CONFIG_KEYS.PDF_FOLDER_ID);
-    if (!pdfFolderId) {
-      ui.alert(
-        'PDF Folder Not Configured',
-        'Please configure the PDF Folder ID in the Config sheet before generating PDFs.\n\n' +
-        'This is where your PDF files will be saved.',
-        ui.ButtonSet.OK
-      );
-      return;
-    }
+    // Get current sheet name for display
+    const sheetName = getCurrentRecipientSheetName();
 
     // Get recipients with documents
     const allRecipients = getAllRecipientsFormatted();
@@ -1292,7 +1283,7 @@ function regenerateAllPdfsUI() {
     if (recipientsWithDocs.length === 0) {
       ui.alert(
         'No Documents Found',
-        'No recipients have documents yet. Generate documents first.',
+        `Sheet: "${sheetName}"\n\nNo recipients have documents yet. Generate documents first.`,
         ui.ButtonSet.OK
       );
       return;
@@ -1300,8 +1291,9 @@ function regenerateAllPdfsUI() {
 
     const response = ui.alert(
       'Regenerate All PDFs',
-      `⚠️ WARNING: This will regenerate PDFs for ALL ${recipientsWithDocs.length} recipient(s) with documents, overwriting existing PDFs.\n\n` +
-      'Existing PDFs will be replaced with new ones.\n\n' +
+      `Sheet: "${sheetName}"\n` +
+      `Recipients: ${recipientsWithDocs.length}\n\n` +
+      '⚠️ WARNING: This will regenerate PDFs for ALL recipients with documents, overwriting existing PDFs.\n\n' +
       'This action cannot be undone. Continue?',
       ui.ButtonSet.YES_NO
     );

@@ -14,6 +14,49 @@
  */
 
 /**
+ * Get or create an output folder for the current sheet
+ * Creates folder structure: OutputFolder/SheetName/subfolder/
+ * @param {string} subfolder - Subfolder name ('docs' or 'pdfs')
+ * @returns {string} Folder ID for the target subfolder
+ */
+function getOrCreateOutputFolder(subfolder) {
+  const parentFolderId = getConfig(CONFIG_KEYS.OUTPUT_FOLDER_ID);
+
+  if (!parentFolderId) {
+    throw new Error('Output Folder ID not configured. Please set it in the Config sheet.');
+  }
+
+  const sheetName = getCurrentRecipientSheetName();
+
+  if (!sheetName || sheetName === '(none)') {
+    throw new Error('No recipient sheet selected.');
+  }
+
+  // Get the parent folder
+  const parentFolder = DriveApp.getFolderById(parentFolderId);
+
+  // Get or create sheet-named subfolder
+  let sheetFolder;
+  const sheetFolders = parentFolder.getFoldersByName(sheetName);
+  if (sheetFolders.hasNext()) {
+    sheetFolder = sheetFolders.next();
+  } else {
+    sheetFolder = parentFolder.createFolder(sheetName);
+  }
+
+  // Get or create docs/pdfs subfolder
+  let targetFolder;
+  const targetFolders = sheetFolder.getFoldersByName(subfolder);
+  if (targetFolders.hasNext()) {
+    targetFolder = targetFolders.next();
+  } else {
+    targetFolder = sheetFolder.createFolder(subfolder);
+  }
+
+  return targetFolder.getId();
+}
+
+/**
  * Extract all placeholder field names from template document
  * @param {string} templateDocId - Template document ID
  * @returns {Object} Object with requiredFields and optionalFields arrays
@@ -345,15 +388,13 @@ function createFirstDocument() {
   ensureRequiredColumns();
 
   const templateDocId = getConfig(CONFIG_KEYS.PDF_TEMPLATE_DOC_ID);
-  const folderId = getConfig(CONFIG_KEYS.OUTPUT_FOLDER_ID);
 
   if (!templateDocId) {
     throw new Error('PDF Template Document ID not configured. Please set it in the Config sheet to generate documents.');
   }
 
-  if (!folderId) {
-    throw new Error('Output Folder ID not configured. Please set it in the Config sheet.');
-  }
+  // Get or create the docs folder for this sheet
+  const folderId = getOrCreateOutputFolder('docs');
 
   const allRecipients = getAllRecipientsFormatted();
 
@@ -394,11 +435,8 @@ function createFirstDocument() {
  * @returns {Object} Result with email, pdfId, pdfName
  */
 function generateFirstPdf() {
-  const pdfFolderId = getConfig(CONFIG_KEYS.PDF_FOLDER_ID);
-
-  if (!pdfFolderId) {
-    throw new Error('PDF Folder ID not configured. Please set it in the Config sheet.');
-  }
+  // Get or create the pdfs folder for this sheet
+  const pdfFolderId = getOrCreateOutputFolder('pdfs');
 
   const allRecipients = getAllRecipientsFormatted();
 
@@ -510,11 +548,13 @@ function createAllDocuments() {
   ensureRequiredColumns();
 
   const templateDocId = getConfig(CONFIG_KEYS.PDF_TEMPLATE_DOC_ID);
-  const folderId = getConfig(CONFIG_KEYS.OUTPUT_FOLDER_ID);
 
   if (!templateDocId) {
     throw new Error('PDF Template Document ID not configured. Please set it in the Config sheet to generate documents.');
   }
+
+  // Get or create the docs folder for this sheet
+  const folderId = getOrCreateOutputFolder('docs');
 
   const recipients = getRecipientsForDocumentCreation();
 
@@ -571,12 +611,14 @@ function createTestDocument() {
   }
 
   const templateDocId = getConfig(CONFIG_KEYS.PDF_TEMPLATE_DOC_ID);
-  const folderId = getConfig(CONFIG_KEYS.OUTPUT_FOLDER_ID);
   const testEmail = getConfig(CONFIG_KEYS.TEST_EMAIL);
 
   if (!templateDocId) {
     throw new Error('PDF Template Document ID not configured. Please set it in the Config sheet to generate documents.');
   }
+
+  // Get or create the docs folder for this sheet
+  const folderId = getOrCreateOutputFolder('docs');
 
   // Get first recipient as sample data
   const recipients = getAllRecipients();
@@ -690,11 +732,8 @@ function generatePdfFromDoc(docId, pdfFolderId, pdfName) {
  * @returns {Object} Results with success and failure counts
  */
 function generateAllPdfs() {
-  const pdfFolderId = getConfig(CONFIG_KEYS.PDF_FOLDER_ID);
-
-  if (!pdfFolderId) {
-    throw new Error('PDF Folder ID not configured. Please set it in the Config sheet.');
-  }
+  // Get or create the pdfs folder for this sheet
+  const pdfFolderId = getOrCreateOutputFolder('pdfs');
 
   // Get all recipients with Doc IDs but no PDF IDs
   const recipients = getRecipientsNeedingPdfs();
@@ -861,11 +900,13 @@ function regenerateAllDocuments() {
   ensureRequiredColumns();
 
   const templateDocId = getConfig(CONFIG_KEYS.PDF_TEMPLATE_DOC_ID);
-  const folderId = getConfig(CONFIG_KEYS.OUTPUT_FOLDER_ID);
 
   if (!templateDocId) {
     throw new Error('PDF Template Document ID not configured. Please set it in the Config sheet to generate documents.');
   }
+
+  // Get or create the docs folder for this sheet
+  const folderId = getOrCreateOutputFolder('docs');
 
   const recipients = getAllRecipientsFormatted();
 
@@ -916,11 +957,8 @@ function regenerateAllDocuments() {
  * @returns {Object} Results with success and failure counts
  */
 function regenerateAllPdfs() {
-  const pdfFolderId = getConfig(CONFIG_KEYS.PDF_FOLDER_ID);
-
-  if (!pdfFolderId) {
-    throw new Error('PDF Folder ID not configured. Please set it in the Config sheet.');
-  }
+  // Get or create the pdfs folder for this sheet
+  const pdfFolderId = getOrCreateOutputFolder('pdfs');
 
   // Get all recipients with Doc IDs (ignore PDF ID status)
   const allRecipients = getAllRecipientsFormatted();
@@ -976,13 +1014,16 @@ function regenerateAllPdfs() {
 
 /**
  * Preview orphan documents (for confirmation before deletion)
+ * Scans OutputFolder/SheetName/docs/ subfolder
  * @returns {Object} Preview with orphan and protected file lists
  */
 function previewOrphanDocuments() {
-  const folderId = getConfig(CONFIG_KEYS.OUTPUT_FOLDER_ID);
-
-  if (!folderId) {
-    throw new Error('Output Folder ID not configured.');
+  // Get the docs subfolder for this sheet
+  let docsFolderId;
+  try {
+    docsFolderId = getOrCreateOutputFolder('docs');
+  } catch (error) {
+    throw new Error('Output Folder ID not configured or sheet not selected.');
   }
 
   const allRecipients = getAllRecipients();
@@ -990,7 +1031,7 @@ function previewOrphanDocuments() {
     .map(r => (r['Doc ID'] || '').toString().trim())
     .filter(id => id !== '');
 
-  const folder = DriveApp.getFolderById(folderId);
+  const folder = DriveApp.getFolderById(docsFolderId);
   const files = folder.getFiles();
 
   const orphanFiles = [];
@@ -1026,14 +1067,16 @@ function previewOrphanDocuments() {
 
 /**
  * Delete orphan documents from output folder
- * (files that don't match any current recipient)
+ * Scans OutputFolder/SheetName/docs/ subfolder
  * @returns {Object} Results with deleted count
  */
 function deleteOrphanDocuments() {
-  const folderId = getConfig(CONFIG_KEYS.OUTPUT_FOLDER_ID);
-
-  if (!folderId) {
-    throw new Error('Output Folder ID not configured.');
+  // Get the docs subfolder for this sheet
+  let docsFolderId;
+  try {
+    docsFolderId = getOrCreateOutputFolder('docs');
+  } catch (error) {
+    throw new Error('Output Folder ID not configured or sheet not selected.');
   }
 
   const allRecipients = getAllRecipients();
@@ -1041,7 +1084,7 @@ function deleteOrphanDocuments() {
     .map(r => (r['Doc ID'] || '').toString().trim())
     .filter(id => id !== '');
 
-  const folder = DriveApp.getFolderById(folderId);
+  const folder = DriveApp.getFolderById(docsFolderId);
   const files = folder.getFiles();
 
   let deletedCount = 0;
@@ -1074,13 +1117,16 @@ function deleteOrphanDocuments() {
 
 /**
  * Preview orphan PDFs (for confirmation before deletion)
+ * Scans OutputFolder/SheetName/pdfs/ subfolder
  * @returns {Object} Preview with orphan and protected file lists
  */
 function previewOrphanPdfs() {
-  const pdfFolderId = getConfig(CONFIG_KEYS.PDF_FOLDER_ID);
-
-  if (!pdfFolderId) {
-    throw new Error('PDF Folder ID not configured.');
+  // Get the pdfs subfolder for this sheet
+  let pdfsFolderId;
+  try {
+    pdfsFolderId = getOrCreateOutputFolder('pdfs');
+  } catch (error) {
+    throw new Error('Output Folder ID not configured or sheet not selected.');
   }
 
   const allRecipients = getAllRecipients();
@@ -1088,7 +1134,7 @@ function previewOrphanPdfs() {
     .map(r => (r['PDF ID'] || '').toString().trim())
     .filter(id => id !== '');
 
-  const folder = DriveApp.getFolderById(pdfFolderId);
+  const folder = DriveApp.getFolderById(pdfsFolderId);
   const files = folder.getFiles();
 
   const orphanFiles = [];
@@ -1124,14 +1170,16 @@ function previewOrphanPdfs() {
 
 /**
  * Delete orphan PDFs from PDF folder
- * (files that don't match any current recipient)
+ * Scans OutputFolder/SheetName/pdfs/ subfolder
  * @returns {Object} Results with deleted count
  */
 function deleteOrphanPdfs() {
-  const pdfFolderId = getConfig(CONFIG_KEYS.PDF_FOLDER_ID);
-
-  if (!pdfFolderId) {
-    throw new Error('PDF Folder ID not configured.');
+  // Get the pdfs subfolder for this sheet
+  let pdfsFolderId;
+  try {
+    pdfsFolderId = getOrCreateOutputFolder('pdfs');
+  } catch (error) {
+    throw new Error('Output Folder ID not configured or sheet not selected.');
   }
 
   const allRecipients = getAllRecipients();
@@ -1139,7 +1187,7 @@ function deleteOrphanPdfs() {
     .map(r => (r['PDF ID'] || '').toString().trim())
     .filter(id => id !== '');
 
-  const folder = DriveApp.getFolderById(pdfFolderId);
+  const folder = DriveApp.getFolderById(pdfsFolderId);
   const files = folder.getFiles();
 
   let deletedCount = 0;
@@ -1172,92 +1220,33 @@ function deleteOrphanPdfs() {
 
 /**
  * Preview all orphan files (both documents and PDFs)
- * Handles case where same folder is used for both
+ * Scans OutputFolder/SheetName/docs/ and OutputFolder/SheetName/pdfs/ subfolders
  * @returns {Object} Preview with orphan counts and file lists
  */
 function previewAllOrphanFiles() {
-  const docFolderId = getConfig(CONFIG_KEYS.OUTPUT_FOLDER_ID);
-  const pdfFolderId = getConfig(CONFIG_KEYS.PDF_FOLDER_ID);
-
   const results = {
     documents: { total: 0, orphanCount: 0, protectedCount: 0, orphanFiles: [], protectedFiles: [], validDocIdsCount: 0 },
     pdfs: { total: 0, orphanCount: 0, protectedCount: 0, orphanFiles: [], protectedFiles: [], validPdfIdsCount: 0 },
-    sameFolderMode: false
+    sheetName: getCurrentRecipientSheetName()
   };
 
-  // Check if using same folder for both
-  const usingSameFolder = docFolderId && pdfFolderId && docFolderId === pdfFolderId;
-  results.sameFolderMode = usingSameFolder;
-
-  if (usingSameFolder) {
-    // Same folder mode: scan once, consider file protected if in EITHER column
-    try {
-      const allRecipients = getAllRecipients();
-      const validDocIds = allRecipients
-        .map(r => (r['Doc ID'] || '').toString().trim())
-        .filter(id => id !== '');
-      const validPdfIds = allRecipients
-        .map(r => (r['PDF ID'] || '').toString().trim())
-        .filter(id => id !== '');
-
-      // Combine all valid IDs
-      const allValidIds = new Set([...validDocIds, ...validPdfIds]);
-
-      const folder = DriveApp.getFolderById(docFolderId);
-      const files = folder.getFiles();
-
-      const orphanFiles = [];
-      const protectedFiles = [];
-      let totalCount = 0;
-
-      while (files.hasNext()) {
-        const file = files.next();
-        const fileId = file.getId();
-        totalCount++;
-
-        const fileInfo = {
-          name: file.getName(),
-          id: fileId
-        };
-
-        if (!allValidIds.has(fileId)) {
-          orphanFiles.push(fileInfo);
-        } else {
-          protectedFiles.push(fileInfo);
-        }
-      }
-
-      results.documents = {
-        total: totalCount,
-        orphanCount: orphanFiles.length,
-        protectedCount: protectedFiles.length,
-        orphanFiles: orphanFiles,
-        protectedFiles: protectedFiles,
-        validDocIdsCount: allValidIds.size
-      };
-      // In same folder mode, pdfs results are same as documents
-      results.pdfs = { total: 0, orphanCount: 0, protectedCount: 0, orphanFiles: [], protectedFiles: [], validPdfIdsCount: 0 };
-    } catch (error) {
-      if (error.message !== 'Output Folder ID not configured.') {
-        throw error;
-      }
+  // Scan docs subfolder
+  try {
+    results.documents = previewOrphanDocuments();
+  } catch (error) {
+    // Folder may not exist yet if no documents created
+    if (!error.message.includes('not configured')) {
+      throw error;
     }
-  } else {
-    // Different folders: scan each separately
-    try {
-      results.documents = previewOrphanDocuments();
-    } catch (error) {
-      if (error.message !== 'Output Folder ID not configured.') {
-        throw error;
-      }
-    }
+  }
 
-    try {
-      results.pdfs = previewOrphanPdfs();
-    } catch (error) {
-      if (error.message !== 'PDF Folder ID not configured.') {
-        throw error;
-      }
+  // Scan pdfs subfolder
+  try {
+    results.pdfs = previewOrphanPdfs();
+  } catch (error) {
+    // Folder may not exist yet if no PDFs created
+    if (!error.message.includes('not configured')) {
+      throw error;
     }
   }
 
@@ -1266,89 +1255,33 @@ function previewAllOrphanFiles() {
 
 /**
  * Delete all orphan files (both documents and PDFs)
- * Handles case where same folder is used for both
+ * Scans OutputFolder/SheetName/docs/ and OutputFolder/SheetName/pdfs/ subfolders
  * @returns {Object} Results with deleted counts
  */
 function deleteAllOrphanFiles() {
-  const docFolderId = getConfig(CONFIG_KEYS.OUTPUT_FOLDER_ID);
-  const pdfFolderId = getConfig(CONFIG_KEYS.PDF_FOLDER_ID);
-
   const results = {
     documents: { total: 0, deleted: 0, files: [], validDocIdsCount: 0 },
     pdfs: { total: 0, deleted: 0, files: [], validPdfIdsCount: 0 },
-    sameFolderMode: false
+    sheetName: getCurrentRecipientSheetName()
   };
 
-  // Check if using same folder for both
-  const usingSameFolder = docFolderId && pdfFolderId && docFolderId === pdfFolderId;
-  results.sameFolderMode = usingSameFolder;
-
-  if (usingSameFolder) {
-    // Same folder mode: scan once, delete if NOT in EITHER column
-    try {
-      const allRecipients = getAllRecipients();
-      const validDocIds = allRecipients
-        .map(r => (r['Doc ID'] || '').toString().trim())
-        .filter(id => id !== '');
-      const validPdfIds = allRecipients
-        .map(r => (r['PDF ID'] || '').toString().trim())
-        .filter(id => id !== '');
-
-      // Combine all valid IDs
-      const allValidIds = new Set([...validDocIds, ...validPdfIds]);
-
-      const folder = DriveApp.getFolderById(docFolderId);
-      const files = folder.getFiles();
-
-      let deletedCount = 0;
-      const deletedFiles = [];
-      let totalCount = 0;
-
-      while (files.hasNext()) {
-        const file = files.next();
-        const fileId = file.getId();
-        totalCount++;
-
-        // If file ID is not in ANY valid ID set, it's an orphan
-        if (!allValidIds.has(fileId)) {
-          deletedFiles.push({
-            name: file.getName(),
-            id: fileId
-          });
-          file.setTrashed(true);
-          deletedCount++;
-        }
-      }
-
-      results.documents = {
-        total: totalCount,
-        deleted: deletedCount,
-        files: deletedFiles,
-        validDocIdsCount: allValidIds.size
-      };
-      // In same folder mode, pdfs results are empty
-      results.pdfs = { total: 0, deleted: 0, files: [], validPdfIdsCount: 0 };
-    } catch (error) {
-      if (error.message !== 'Output Folder ID not configured.') {
-        throw error;
-      }
+  // Delete from docs subfolder
+  try {
+    results.documents = deleteOrphanDocuments();
+  } catch (error) {
+    // Folder may not exist yet if no documents created
+    if (!error.message.includes('not configured')) {
+      throw error;
     }
-  } else {
-    // Different folders: delete from each separately
-    try {
-      results.documents = deleteOrphanDocuments();
-    } catch (error) {
-      if (error.message !== 'Output Folder ID not configured.') {
-        throw error;
-      }
-    }
+  }
 
-    try {
-      results.pdfs = deleteOrphanPdfs();
-    } catch (error) {
-      if (error.message !== 'PDF Folder ID not configured.') {
-        throw error;
-      }
+  // Delete from pdfs subfolder
+  try {
+    results.pdfs = deleteOrphanPdfs();
+  } catch (error) {
+    // Folder may not exist yet if no PDFs created
+    if (!error.message.includes('not configured')) {
+      throw error;
     }
   }
 
@@ -1358,10 +1291,12 @@ function deleteAllOrphanFiles() {
 /**
  * Debug function: Show detailed file and recipient ID mapping
  * Helps diagnose orphan file issues
+ * Scans OutputFolder/SheetName/docs/ and OutputFolder/SheetName/pdfs/ subfolders
  * @returns {Object} Detailed diagnostic information
  */
 function debugOrphanFiles() {
   const result = {
+    sheetName: getCurrentRecipientSheetName(),
     recipients: [],
     documentFolder: { files: [], folderUrl: '' },
     pdfFolder: { files: [], folderUrl: '' }
@@ -1377,20 +1312,18 @@ function debugOrphanFiles() {
 
   // Get document folder files
   try {
-    const docFolderId = getConfig(CONFIG_KEYS.OUTPUT_FOLDER_ID);
-    if (docFolderId) {
-      const docFolder = DriveApp.getFolderById(docFolderId);
-      result.documentFolder.folderUrl = docFolder.getUrl();
+    const docFolderId = getOrCreateOutputFolder('docs');
+    const docFolder = DriveApp.getFolderById(docFolderId);
+    result.documentFolder.folderUrl = docFolder.getUrl();
 
-      const docFiles = docFolder.getFiles();
-      while (docFiles.hasNext()) {
-        const file = docFiles.next();
-        result.documentFolder.files.push({
-          name: file.getName(),
-          id: file.getId(),
-          url: file.getUrl()
-        });
-      }
+    const docFiles = docFolder.getFiles();
+    while (docFiles.hasNext()) {
+      const file = docFiles.next();
+      result.documentFolder.files.push({
+        name: file.getName(),
+        id: file.getId(),
+        url: file.getUrl()
+      });
     }
   } catch (error) {
     result.documentFolder.error = error.message;
@@ -1398,20 +1331,18 @@ function debugOrphanFiles() {
 
   // Get PDF folder files
   try {
-    const pdfFolderId = getConfig(CONFIG_KEYS.PDF_FOLDER_ID);
-    if (pdfFolderId) {
-      const pdfFolder = DriveApp.getFolderById(pdfFolderId);
-      result.pdfFolder.folderUrl = pdfFolder.getUrl();
+    const pdfFolderId = getOrCreateOutputFolder('pdfs');
+    const pdfFolder = DriveApp.getFolderById(pdfFolderId);
+    result.pdfFolder.folderUrl = pdfFolder.getUrl();
 
-      const pdfFiles = pdfFolder.getFiles();
-      while (pdfFiles.hasNext()) {
-        const file = pdfFiles.next();
-        result.pdfFolder.files.push({
-          name: file.getName(),
-          id: file.getId(),
-          url: file.getUrl()
-        });
-      }
+    const pdfFiles = pdfFolder.getFiles();
+    while (pdfFiles.hasNext()) {
+      const file = pdfFiles.next();
+      result.pdfFolder.files.push({
+        name: file.getName(),
+        id: file.getId(),
+        url: file.getUrl()
+      });
     }
   } catch (error) {
     result.pdfFolder.error = error.message;
