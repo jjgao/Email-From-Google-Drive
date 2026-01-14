@@ -6,7 +6,7 @@ Send personalized emails using templates from Google Docs and recipient data fro
 
 This Google Apps Script application allows you to send personalized email campaigns directly from Google Sheets. It uses Google Docs for email templates with placeholder support and provides a simple menu-based interface for non-technical users.
 
-**Current Version: 0.2.0** - Enhanced Filename Generation & Bug Fixes
+**Current Version: 0.3.0** - Multi-Sheet Support & Improved Folder Organization
 
 ## Features (MVP1.1)
 
@@ -16,7 +16,6 @@ This Google Apps Script application allows you to send personalized email campai
 - ✅ **Basic HTML support** - Bold, italic, links, and headers in templates
 - ✅ **Auto-attach PDFs** - Automatically attach PDFs when PDF ID exists
 - ✅ **Multiple attachments** - Support for multiple file attachments per email
-- ✅ **One-click workflow** - Generate PDFs and send emails in single operation
 - ✅ **Test email capability** - Send test emails before launching campaigns
 - ✅ **Status tracking** - Track sent/failed status for each recipient
 - ✅ **Quota management** - Check available quota before sending
@@ -27,6 +26,8 @@ This Google Apps Script application allows you to send personalized email campai
 - ✅ **PDF export** - Convert generated documents to PDFs
 - ✅ **Incremental & full regeneration** - Create new docs or regenerate all existing ones
 - ✅ **Orphan file cleanup** - Remove files not matching any recipient
+- ✅ **Multi-sheet support** - Work with multiple recipient sheets in the same spreadsheet
+- ✅ **Auto-organized folders** - Files automatically organized in `OutputFolder/SheetName/docs/` and `OutputFolder/SheetName/pdfs/`
 
 ### System
 - ✅ **Comprehensive logging** - All activities logged to a sheet
@@ -57,13 +58,21 @@ This Google Apps Script application allows you to send personalized email campai
 
 ### 2. Create Recipient Sheet
 
-Create a sheet named "Recipients" with the following columns:
+Create a sheet with recipient data. Any sheet name works (except "Config" and "Email Logs" which are system sheets). The system will use the currently active sheet as the recipient sheet.
 
-| Email | Name | Company | Status |
-|-------|------|---------|--------|
-| john@example.com | John Doe | Acme Inc | pending |
+Minimum required columns:
 
-**Or** run the `createSampleRecipientSheet()` function from the Apps Script editor to create a sample sheet automatically.
+| Email | First Name | Last Name |
+|-------|------------|-----------|
+| john@example.com | John | Doe |
+
+Additional columns are auto-created when needed:
+- **Filename** - Custom document name (optional, auto-generated if empty)
+- **Doc ID** - Tracks generated Google Docs
+- **PDF ID** - Tracks generated PDFs
+- **Email Status** - Tracks email send status (pending/sent/failed)
+
+**Or** use **Email Campaign → Setup → Create Sample Data** to create a sample sheet automatically.
 
 ### 3. Create Templates
 
@@ -118,19 +127,22 @@ Management
 ## Configuration
 
 1. Open your Google Sheet
-2. Click **Email Campaign → Setup Configuration**
-3. Fill in the required fields:
-   - **Email Template Document ID** - ID for email body template (required)
-   - **PDF Template Document ID** - ID for PDF generation template (optional - leave empty if not using)
-   - **Sender Name** - Name that appears as sender
-   - **Reply-To Email** - Email for replies
-   - **Test Email** - Your email for testing
+2. Click **Email Campaign → Setup → Setup via Config Sheet**
+3. Fill in the required fields in the Config sheet:
+   - **Email Template Document ID** - ID for email body template (required for emails)
+   - **PDF Template Document ID** - ID for PDF generation template (required for document generation)
+   - **Output Folder ID** - Google Drive folder ID (required for document generation)
+   - **Sender Name** - Name that appears as sender (required for emails)
+   - **Reply-To Email** - Email for replies (required for emails)
+   - **Test Email** - Your email for testing (required)
    - **Email Subject** - Subject line (can use {{placeholders}})
-   - **Recipient Sheet Name** - Name of sheet with recipients (default: "Recipients")
-   - **Output Folder ID** - Google Drive folder for generated documents (optional)
-   - **PDF Folder ID** - Google Drive folder for PDF files (optional)
+   - **Document Name Template** - Custom filename format (optional)
 
-4. Click **Save Configuration**
+**Note:** The system automatically creates subfolders within your Output Folder:
+- `OutputFolder/SheetName/docs/` - For generated Google Docs
+- `OutputFolder/SheetName/pdfs/` - For generated PDFs
+
+This keeps files organized when working with multiple recipient sheets.
 
 ## Usage
 
@@ -150,24 +162,6 @@ Management
 6. Review the results dialog
 
 **Note:** PDFs are automatically attached to emails when a recipient has a PDF ID. Additional attachments can be specified in the "Attachment IDs" column.
-
-### One-Click Workflow: Generate PDFs & Send
-
-The fastest way to send emails with PDF attachments:
-
-1. Click **Email Campaign → ⚡ Generate PDFs & Send**
-2. System will:
-   - Generate PDFs for all recipients with documents (if not already generated)
-   - Send campaign emails with PDFs automatically attached
-3. Review confirmation dialog showing pending count
-4. Click **Yes** to execute the workflow
-5. View combined results for both PDF generation and email sending
-
-**Benefits:**
-- Single operation instead of two separate steps
-- Ensures PDFs are fresh and up-to-date
-- Perfect for recurring campaigns
-- Saves time and reduces errors
 
 ### Adding File Attachments
 
@@ -279,9 +273,9 @@ To attach files to emails for specific recipients:
 - Make sure the Doc isn't in Trash
 
 ### "No recipients found"
-- Ensure "Recipients" sheet exists
+- Ensure you have a data sheet with recipients (not Config or Email Logs)
+- Make sure the active sheet contains recipient data
 - Check that Email column has valid addresses
-- Verify sheet name matches configuration
 
 ### "Quota exceeded"
 - Gmail has daily sending limits:
@@ -299,9 +293,9 @@ To attach files to emails for specific recipients:
 
 ### Document Generation Issues
 - **Output Folder not configured**: Set Output Folder ID in Config sheet
-- **PDF Folder not configured**: Set PDF Folder ID in Config sheet (optional for PDFs)
 - **No pending recipients**: All recipients already have Doc IDs - use "Regenerate All" or clear Doc IDs
-- **Permission denied**: Ensure you have write access to the output folders
+- **Permission denied**: Ensure you have write access to the output folder
+- **Wrong sheet selected**: Make sure the active sheet contains your recipient data (confirmation dialogs show which sheet will be used)
 
 ## Testing
 
@@ -322,6 +316,26 @@ Run the system test from Apps Script editor:
 These features will be added in future versions (MVP2, MVP3).
 
 ## Version History
+
+### v0.3.0 (2026-01-14) - Multi-Sheet Support & Improved Folder Organization
+**New Features:**
+- **Multi-sheet support**: Work with multiple recipient sheets in the same spreadsheet
+- **Auto-organized folders**: Files automatically organized in `OutputFolder/SheetName/docs/` and `OutputFolder/SheetName/pdfs/`
+- **Sheet selection display**: All confirmation dialogs now show which sheet will be used
+- **Ensure Required Columns**: New menu item to auto-create Filename, Doc ID, PDF ID, and Email Status columns
+
+**Changes:**
+- Renamed "Status" column to "Email Status" for clarity
+- Removed "Recipient Sheet Name" config setting (now uses active sheet)
+- Removed "PDF Folder ID" config setting (now auto-created as subfolder)
+- Removed combined "Generate PDFs & Send" menu item (use separate operations for more control)
+- Reorganized menu structure with Setup, Testing, and Maintenance submenus
+
+**Improvements:**
+- Better menu organization with logical groupings
+- Confirmation dialogs show recipient count and sheet name
+- Simplified configuration with fewer required settings
+- Better folder organization for multi-campaign workflows
 
 ### v0.2.0 (2026-01-12) - Enhanced Filename Generation & Bug Fixes
 **New Features:**
