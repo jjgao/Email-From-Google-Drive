@@ -261,13 +261,7 @@ function generateDefaultDocumentName(recipientData) {
  */
 function fillDefaultFilenames() {
   try {
-    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-    const recipientSheetName = getConfig(CONFIG_KEYS.RECIPIENT_SHEET_NAME);
-    const sheet = spreadsheet.getSheetByName(recipientSheetName);
-
-    if (!sheet) {
-      throw new Error(`Recipient sheet "${recipientSheetName}" not found`);
-    }
+    const sheet = getRecipientSheet();
 
     // Get headers
     const lastColumn = sheet.getLastColumn();
@@ -608,13 +602,7 @@ function createTestDocument() {
  * @param {string} docId - Document ID
  */
 function updateRecipientDocId(row, docId) {
-  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-  const sheetName = getConfig(CONFIG_KEYS.RECIPIENT_SHEET_NAME);
-  const sheet = spreadsheet.getSheetByName(sheetName);
-
-  if (!sheet) {
-    throw new Error(`Sheet "${sheetName}" not found`);
-  }
+  const sheet = getRecipientSheet();
 
   // Find Doc ID column (should be column 9 based on our headers)
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
@@ -786,13 +774,7 @@ function getRecipientsNeedingPdfs() {
  * @param {string} pdfId - PDF file ID
  */
 function updateRecipientPdfId(row, pdfId) {
-  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-  const sheetName = getConfig(CONFIG_KEYS.RECIPIENT_SHEET_NAME);
-  const sheet = spreadsheet.getSheetByName(sheetName);
-
-  if (!sheet) {
-    throw new Error(`Sheet "${sheetName}" not found`);
-  }
+  const sheet = getRecipientSheet();
 
   // Find PDF ID column
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
@@ -848,11 +830,10 @@ function logPdfGeneration(recipientData, pdfId, pdfUrl, status, errorMessage = '
  * @param {number} row - Row number in sheet
  */
 function clearRecipientPdfId(row) {
-  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-  const sheetName = getConfig(CONFIG_KEYS.RECIPIENT_SHEET_NAME);
-  const sheet = spreadsheet.getSheetByName(sheetName);
-
-  if (!sheet) {
+  let sheet;
+  try {
+    sheet = getRecipientSheet();
+  } catch (error) {
     return; // Silently return if sheet not found
   }
 

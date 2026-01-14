@@ -7,8 +7,6 @@ const CONFIG_KEYS = {
   EMAIL_TEMPLATE_DOC_ID: 'EMAIL_TEMPLATE_DOC_ID',
   PDF_TEMPLATE_DOC_ID: 'PDF_TEMPLATE_DOC_ID',
   OUTPUT_FOLDER_ID: 'OUTPUT_FOLDER_ID',
-  PDF_FOLDER_ID: 'PDF_FOLDER_ID',
-  RECIPIENT_SHEET_NAME: 'RECIPIENT_SHEET_NAME',
   LOG_SHEET_NAME: 'LOG_SHEET_NAME',
   SENDER_NAME: 'SENDER_NAME',
   REPLY_TO_EMAIL: 'REPLY_TO_EMAIL',
@@ -18,7 +16,6 @@ const CONFIG_KEYS = {
 };
 
 const DEFAULT_VALUES = {
-  RECIPIENT_SHEET_NAME: 'Recipients',
   LOG_SHEET_NAME: 'Email Logs',
   EMAIL_SUBJECT: 'Message from {{Name}}',
   DOCUMENT_NAME_TEMPLATE: ''  // Empty by default - will use "Template Name - First Last" format
@@ -30,8 +27,6 @@ const CONFIG_LABELS = {
   EMAIL_TEMPLATE_DOC_ID: 'Email Template Document ID',
   PDF_TEMPLATE_DOC_ID: 'PDF Template Document ID',
   OUTPUT_FOLDER_ID: 'Output Folder ID',
-  PDF_FOLDER_ID: 'PDF Folder ID',
-  RECIPIENT_SHEET_NAME: 'Recipient Sheet Name',
   LOG_SHEET_NAME: 'Log Sheet Name',
   SENDER_NAME: 'Sender Name',
   REPLY_TO_EMAIL: 'Reply-To Email',
@@ -43,9 +38,7 @@ const CONFIG_LABELS = {
 const CONFIG_DESCRIPTIONS = {
   EMAIL_TEMPLATE_DOC_ID: 'Google Doc ID for email body template (from URL) - required for sending emails',
   PDF_TEMPLATE_DOC_ID: 'Google Doc ID for PDF document template (from URL) - optional, used to generate personalized PDFs',
-  OUTPUT_FOLDER_ID: 'Google Drive Folder ID where generated docs will be saved',
-  PDF_FOLDER_ID: 'Google Drive Folder ID where generated PDFs will be saved (optional)',
-  RECIPIENT_SHEET_NAME: 'Name of sheet containing recipients',
+  OUTPUT_FOLDER_ID: 'Google Drive Folder ID - docs and PDFs will be organized in subfolders by sheet name',
   LOG_SHEET_NAME: 'Name of sheet for email logs',
   SENDER_NAME: 'Display name that appears as sender',
   REPLY_TO_EMAIL: 'Email address for replies',

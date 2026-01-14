@@ -48,13 +48,9 @@ function initializeApp() {
 
   // Ensure status column exists if recipient sheet exists
   try {
-    const recipientSheetName = getConfig(CONFIG_KEYS.RECIPIENT_SHEET_NAME);
-    if (recipientSheetName) {
-      const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(recipientSheetName);
-      if (sheet) {
-        ensureStatusColumn();
-      }
-    }
+    // Try to get the recipient sheet and ensure status column exists
+    getRecipientSheet();
+    ensureStatusColumn();
   } catch (error) {
     console.log('Recipient sheet not found or status column already exists');
   }

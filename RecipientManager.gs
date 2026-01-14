@@ -3,19 +3,74 @@
  * Handles reading recipients from Google Sheets and validating email addresses
  */
 
+// Key for storing selected recipient sheet in document properties
+const SELECTED_SHEET_KEY = 'selectedRecipientSheet';
+
+/**
+ * Get the selected recipient sheet name from document properties
+ * @returns {string|null} Selected sheet name or null if not set
+ */
+function getSelectedSheetName() {
+  const props = PropertiesService.getDocumentProperties();
+  return props.getProperty(SELECTED_SHEET_KEY);
+}
+
+/**
+ * Set the selected recipient sheet name in document properties
+ * @param {string} sheetName - Name of the sheet to select
+ */
+function setSelectedSheetName(sheetName) {
+  const props = PropertiesService.getDocumentProperties();
+  props.setProperty(SELECTED_SHEET_KEY, sheetName);
+}
+
+/**
+ * Clear the selected recipient sheet (will use active sheet)
+ */
+function clearSelectedSheetName() {
+  const props = PropertiesService.getDocumentProperties();
+  props.deleteProperty(SELECTED_SHEET_KEY);
+}
+
 /**
  * Get the recipient sheet
+ * Uses: 1) stored selection, 2) active sheet if it's not Config/Log
  * @returns {GoogleAppsScript.Spreadsheet.Sheet} Recipient sheet
  */
 function getRecipientSheet() {
-  const sheetName = getConfig(CONFIG_KEYS.RECIPIENT_SHEET_NAME);
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
 
-  if (!sheet) {
-    throw new Error(`Recipient sheet "${sheetName}" not found. Please create it or update configuration.`);
+  // First, try the stored selection
+  const selectedName = getSelectedSheetName();
+  if (selectedName) {
+    const sheet = spreadsheet.getSheetByName(selectedName);
+    if (sheet) {
+      return sheet;
+    }
+    // Clear invalid selection
+    clearSelectedSheetName();
   }
 
-  return sheet;
+  // Fall back to active sheet if it's not a system sheet
+  const activeSheet = spreadsheet.getActiveSheet();
+  const activeSheetName = activeSheet.getName();
+
+  // Don't use system sheets
+  const systemSheets = ['Config', 'Email Logs'];
+  if (!systemSheets.includes(activeSheetName)) {
+    return activeSheet;
+  }
+
+  // If active sheet is a system sheet, try to find the first data sheet
+  const sheets = spreadsheet.getSheets();
+  for (const sheet of sheets) {
+    const name = sheet.getName();
+    if (!systemSheets.includes(name)) {
+      return sheet;
+    }
+  }
+
+  throw new Error('No recipient sheet found. Please create a sheet with recipient data.');
 }
 
 /**

@@ -103,11 +103,6 @@ function showConfigDialog() {
       <div class="hint">Can use {{placeholders}}</div>
     </div>
 
-    <div class="field">
-      <label>Recipient Sheet Name:</label>
-      <input type="text" id="recipientSheet" value="${currentConfig.RECIPIENT_SHEET_NAME || 'Recipients'}" />
-    </div>
-
     <button onclick="saveConfig()">Save Configuration</button>
 
     <script>
@@ -118,8 +113,7 @@ function showConfigDialog() {
           SENDER_NAME: document.getElementById('senderName').value,
           REPLY_TO_EMAIL: document.getElementById('replyToEmail').value,
           TEST_EMAIL: document.getElementById('testEmail').value,
-          EMAIL_SUBJECT: document.getElementById('emailSubject').value,
-          RECIPIENT_SHEET_NAME: document.getElementById('recipientSheet').value
+          EMAIL_SUBJECT: document.getElementById('emailSubject').value
         };
 
         google.script.run
@@ -419,11 +413,11 @@ function openConfigSheetUI() {
 function createSampleDataUI() {
   const ui = SpreadsheetApp.getUi();
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-  const recipientSheetName = getConfig(CONFIG_KEYS.RECIPIENT_SHEET_NAME);
+  const sampleSheetName = 'Recipients';
 
   const response = ui.alert(
     'Create Sample Data',
-    `This will create sample recipient data in a sheet named "${recipientSheetName}".\n\n` +
+    `This will create sample recipient data in a sheet named "${sampleSheetName}".\n\n` +
     'If the sheet already exists, you will be asked to confirm replacement.\n\n' +
     'Continue?',
     ui.ButtonSet.YES_NO
@@ -435,23 +429,23 @@ function createSampleDataUI() {
 
   try {
     // Check if sheet already exists
-    let sheet = spreadsheet.getSheetByName(recipientSheetName);
+    let sheet = spreadsheet.getSheetByName(sampleSheetName);
 
     if (sheet) {
       const replaceResponse = ui.alert(
         'Sheet Exists',
-        `Sheet "${recipientSheetName}" already exists. Replace it with sample data?`,
+        `Sheet "${sampleSheetName}" already exists. Replace it with sample data?`,
         ui.ButtonSet.YES_NO
       );
 
       if (replaceResponse === ui.Button.YES) {
         spreadsheet.deleteSheet(sheet);
-        sheet = spreadsheet.insertSheet(recipientSheetName);
+        sheet = spreadsheet.insertSheet(sampleSheetName);
       } else {
         return;
       }
     } else {
-      sheet = spreadsheet.insertSheet(recipientSheetName);
+      sheet = spreadsheet.insertSheet(sampleSheetName);
     }
 
     // Add headers
@@ -496,7 +490,7 @@ function createSampleDataUI() {
 
     ui.alert(
       'Success',
-      `Sample recipient sheet "${recipientSheetName}" created with 3 test recipients.\n\n` +
+      `Sample recipient sheet "${sampleSheetName}" created with 3 test recipients.\n\n` +
       'IMPORTANT: Please replace the sample email addresses with valid test emails before sending!\n\n' +
       'NOTE: The third recipient (Bob Johnson) has a missing City field to test validation. Document generation will skip this recipient if City is used in your template.\n\n' +
       'TIP: Use the "Filename" column to customize document names per recipient (overrides template config). Add a "Filename" column if you want custom naming.\n\n' +
