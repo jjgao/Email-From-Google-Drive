@@ -86,7 +86,7 @@ function getPendingRecipients() {
   const allRecipients = getAllRecipients();
 
   return allRecipients.filter(recipient => {
-    const status = (recipient.Status || '').toString().trim().toLowerCase();
+    const status = (recipient['Email Status'] || '').toString().trim().toLowerCase();
     // Include if status is empty or 'pending'
     return status === '' || status === 'pending';
   });
@@ -142,35 +142,35 @@ function updateRecipientStatus(rowIndex, status) {
   const sheet = getRecipientSheet();
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
 
-  // Find Status column index
-  const statusColumnIndex = headers.indexOf('Status') + 1;
+  // Find Email Status column index
+  const statusColumnIndex = headers.indexOf('Email Status') + 1;
 
   if (statusColumnIndex > 0) {
     sheet.getRange(rowIndex, statusColumnIndex).setValue(status);
   } else {
-    // Status column doesn't exist, add it
+    // Email Status column doesn't exist, add it
     const lastColumn = sheet.getLastColumn();
-    sheet.getRange(1, lastColumn + 1).setValue('Status');
+    sheet.getRange(1, lastColumn + 1).setValue('Email Status');
     sheet.getRange(rowIndex, lastColumn + 1).setValue(status);
   }
 }
 
 /**
- * Ensure Status column exists in recipient sheet
+ * Ensure Email Status column exists in recipient sheet
  */
 function ensureStatusColumn() {
   const sheet = getRecipientSheet();
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
 
-  // Check if Status column exists
-  if (headers.indexOf('Status') === -1) {
+  // Check if Email Status column exists
+  if (headers.indexOf('Email Status') === -1) {
     const lastColumn = sheet.getLastColumn();
-    sheet.getRange(1, lastColumn + 1).setValue('Status');
+    sheet.getRange(1, lastColumn + 1).setValue('Email Status');
   }
 }
 
 /**
- * Ensure all required columns exist: Filename, Status, Doc ID, PDF ID
+ * Ensure all required columns exist: Filename, Doc ID, PDF ID, Email Status
  * Creates missing columns and fills default values
  * @returns {Object} Results with columns created and values filled
  */
@@ -193,7 +193,7 @@ function ensureRequiredColumns() {
   const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
 
   // Define required columns in order they should appear
-  const requiredColumns = ['Filename', 'Status', 'Doc ID', 'PDF ID'];
+  const requiredColumns = ['Filename', 'Doc ID', 'PDF ID', 'Email Status'];
 
   // Track current headers (will be updated as we add columns)
   let currentHeaders = [...headers];
@@ -215,8 +215,8 @@ function ensureRequiredColumns() {
       // Set column width based on column type
       if (colName === 'Filename') {
         sheet.setColumnWidth(currentLastColumn, 200);
-      } else if (colName === 'Status') {
-        sheet.setColumnWidth(currentLastColumn, 80);
+      } else if (colName === 'Email Status') {
+        sheet.setColumnWidth(currentLastColumn, 100);
       } else {
         sheet.setColumnWidth(currentLastColumn, 120);
       }
@@ -240,7 +240,7 @@ function ensureRequiredColumns() {
 
   // Get column indices
   const filenameColIndex = updatedHeaders.indexOf('Filename') + 1;
-  const statusColIndex = updatedHeaders.indexOf('Status') + 1;
+  const statusColIndex = updatedHeaders.indexOf('Email Status') + 1;
 
   // Get all data for processing
   const dataRange = sheet.getRange(2, 1, lastRow - 1, updatedLastColumn);
@@ -328,7 +328,7 @@ function getRecipientSummary() {
   };
 
   recipients.forEach(recipient => {
-    const status = (recipient.Status || 'pending').toString().toLowerCase();
+    const status = (recipient['Email Status'] || 'pending').toString().toLowerCase();
     if (status === 'sent') {
       summary.sent++;
     } else if (status === 'failed') {

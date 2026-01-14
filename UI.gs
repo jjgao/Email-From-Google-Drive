@@ -344,9 +344,9 @@ function ensureRequiredColumnsUI() {
     const response = ui.alert(
       'Ensure Required Columns',
       'This will:\n\n' +
-      '1. Create missing columns: Filename, Status, Doc ID, PDF ID\n' +
+      '1. Create missing columns: Filename, Doc ID, PDF ID, Email Status\n' +
       '2. Fill empty Filename cells with default names (Template Name - First Last)\n' +
-      '3. Fill empty Status cells with "pending"\n\n' +
+      '3. Fill empty Email Status cells with "pending"\n\n' +
       'Existing values will NOT be overwritten.\n\n' +
       'Continue?',
       ui.ButtonSet.YES_NO
@@ -455,7 +455,7 @@ function createSampleDataUI() {
     }
 
     // Add headers
-    const headers = ['Email', 'First Name', 'Last Name', 'Address1', 'Address2', 'City', 'State', 'ZIP', 'Status', 'Doc ID', 'PDF ID', 'Attachment IDs'];
+    const headers = ['Email', 'First Name', 'Last Name', 'Address1', 'Address2', 'City', 'State', 'ZIP', 'Filename', 'Doc ID', 'PDF ID', 'Email Status', 'Attachment IDs'];
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
 
     // Format headers

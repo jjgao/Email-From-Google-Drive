@@ -238,8 +238,8 @@ function createSampleRecipientSheet() {
     sheet = spreadsheet.insertSheet(sheetName);
   }
 
-  // Add headers
-  const headers = ['Email', 'First Name', 'Last Name', 'Address1', 'Address2', 'City', 'State', 'ZIP', 'Status'];
+  // Add headers (Email Status will be added later by ensureRequiredColumns)
+  const headers = ['Email', 'First Name', 'Last Name', 'Address1', 'Address2', 'City', 'State', 'ZIP'];
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
 
   // Format headers

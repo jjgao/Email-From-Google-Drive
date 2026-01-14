@@ -479,7 +479,7 @@ function replaceInDocument(body, data) {
   // Replace in regular text
   for (const key in data) {
     // Skip internal/system fields
-    if (key === '_rowIndex' || key === 'Status' || key === 'Doc ID' || key === 'PDF ID') {
+    if (key === '_rowIndex' || key === 'Email Status' || key === 'Doc ID' || key === 'PDF ID') {
       continue;
     }
 
