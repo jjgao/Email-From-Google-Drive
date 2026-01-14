@@ -6,7 +6,7 @@
  * and recipient data from Google Sheets.
  *
  * @author Email-From-Google-Drive
- * @version 0.2.0
+ * @version 0.3.0
  */
 
 /**
@@ -14,7 +14,7 @@
  */
 const APP_INFO = {
   name: 'Email From Google Drive',
-  version: '0.2.0',
+  version: '0.3.0',
   description: 'Send personalized emails using Google Sheets and Google Docs'
 };
 
