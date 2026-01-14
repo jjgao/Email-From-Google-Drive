@@ -50,6 +50,106 @@ function onOpen() {
 }
 
 /**
+ * Show sheet selection dialog and store the selection
+ * @returns {string|null} Selected sheet name, or null if cancelled
+ */
+function showSheetSelectionDialog() {
+  const ui = SpreadsheetApp.getUi();
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const sheets = spreadsheet.getSheets();
+
+  // Filter out system sheets
+  const systemSheets = ['Config', 'Email Logs'];
+  const dataSheets = sheets.filter(sheet => !systemSheets.includes(sheet.getName()));
+
+  if (dataSheets.length === 0) {
+    ui.alert('No Data Sheets', 'No recipient data sheets found. Please create a sheet with recipient data first.', ui.ButtonSet.OK);
+    return null;
+  }
+
+  // Build list of sheets with numbers
+  let sheetList = 'Available sheets:\n';
+  dataSheets.forEach((sheet, index) => {
+    const isActive = sheet.getName() === spreadsheet.getActiveSheet().getName();
+    sheetList += `${index + 1}. ${sheet.getName()}${isActive ? ' (currently active)' : ''}\n`;
+  });
+
+  // Get current selection or default
+  const currentSelection = getSelectedSheetName();
+  const activeSheetName = spreadsheet.getActiveSheet().getName();
+  const defaultSheet = currentSelection || (systemSheets.includes(activeSheetName) ? dataSheets[0].getName() : activeSheetName);
+
+  const response = ui.prompt(
+    'Select Recipient Sheet',
+    `${sheetList}\nEnter the sheet name or number (default: ${defaultSheet}):`,
+    ui.ButtonSet.OK_CANCEL
+  );
+
+  if (response.getSelectedButton() !== ui.Button.OK) {
+    return null;
+  }
+
+  let selectedName = response.getResponseText().trim();
+
+  // If empty, use default
+  if (selectedName === '') {
+    selectedName = defaultSheet;
+  }
+
+  // If numeric, convert to sheet name
+  const sheetNumber = parseInt(selectedName, 10);
+  if (!isNaN(sheetNumber) && sheetNumber >= 1 && sheetNumber <= dataSheets.length) {
+    selectedName = dataSheets[sheetNumber - 1].getName();
+  }
+
+  // Validate sheet exists and is not a system sheet
+  const selectedSheet = spreadsheet.getSheetByName(selectedName);
+  if (!selectedSheet) {
+    ui.alert('Invalid Sheet', `Sheet "${selectedName}" not found.`, ui.ButtonSet.OK);
+    return null;
+  }
+
+  if (systemSheets.includes(selectedName)) {
+    ui.alert('Invalid Sheet', `"${selectedName}" is a system sheet. Please select a data sheet.`, ui.ButtonSet.OK);
+    return null;
+  }
+
+  // Store selection
+  setSelectedSheetName(selectedName);
+
+  return selectedName;
+}
+
+/**
+ * Get the current recipient sheet name for display
+ * @returns {string} Current sheet name being used
+ */
+function getCurrentRecipientSheetName() {
+  const selectedName = getSelectedSheetName();
+  if (selectedName) {
+    return selectedName;
+  }
+
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const activeSheet = spreadsheet.getActiveSheet();
+  const systemSheets = ['Config', 'Email Logs'];
+
+  if (!systemSheets.includes(activeSheet.getName())) {
+    return activeSheet.getName();
+  }
+
+  // Fall back to first data sheet
+  const sheets = spreadsheet.getSheets();
+  for (const sheet of sheets) {
+    if (!systemSheets.includes(sheet.getName())) {
+      return sheet.getName();
+    }
+  }
+
+  return '(none)';
+}
+
+/**
  * Show configuration dialog
  */
 function showConfigDialog() {
@@ -189,12 +289,15 @@ function sendCampaignUI() {
     return;
   }
 
+  // Get current sheet name for display
+  const sheetName = getCurrentRecipientSheetName();
+
   // Get pending recipient count
   try {
     const summary = getRecipientSummary();
 
     if (summary.pending === 0) {
-      ui.alert('No Pending Recipients', 'All emails have already been sent or there are no recipients.', ui.ButtonSet.OK);
+      ui.alert('No Pending Recipients', `Sheet: "${sheetName}"\n\nAll emails have already been sent or there are no recipients.`, ui.ButtonSet.OK);
       return;
     }
 
@@ -203,7 +306,7 @@ function sendCampaignUI() {
     if (quota.remaining < summary.pending) {
       ui.alert(
         'Quota Warning',
-        `You have ${quota.remaining} emails remaining in your daily quota, but ${summary.pending} emails to send.\n\nPlease reduce recipients or wait until tomorrow.`,
+        `Sheet: "${sheetName}"\n\nYou have ${quota.remaining} emails remaining in your daily quota, but ${summary.pending} emails to send.\n\nPlease reduce recipients or wait until tomorrow.`,
         ui.ButtonSet.OK
       );
       return;
@@ -212,7 +315,11 @@ function sendCampaignUI() {
     // Confirm send
     const response = ui.alert(
       'Confirm Send Campaign',
-      `Ready to send to ${summary.pending} recipients.\n\nQuota remaining: ${quota.remaining}\n\nThis action cannot be undone. Continue?`,
+      `Sheet: "${sheetName}"\n` +
+      `Recipients: ${summary.pending}\n` +
+      `Quota remaining: ${quota.remaining}\n\n` +
+      'This action cannot be undone. Continue?\n\n' +
+      '(To change the sheet, cancel and use a different active sheet)',
       ui.ButtonSet.YES_NO
     );
 
@@ -270,11 +377,13 @@ function showStatsDialog() {
   const ui = SpreadsheetApp.getUi();
 
   try {
+    const sheetName = getCurrentRecipientSheetName();
     const recipientStats = getRecipientSummary();
     const logStats = getLogStats();
     const quota = getQuotaInfo();
 
-    let message = 'RECIPIENT STATUS\n';
+    let message = `CURRENT SHEET: "${sheetName}"\n\n`;
+    message += 'RECIPIENT STATUS\n';
     message += `Total Recipients: ${recipientStats.total}\n`;
     message += `Pending: ${recipientStats.pending}\n`;
     message += `Sent: ${recipientStats.sent}\n`;
@@ -969,14 +1078,18 @@ function createAllDocumentsUI() {
   const ui = SpreadsheetApp.getUi();
 
   try {
+    // Get current sheet name for display
+    const sheetName = getCurrentRecipientSheetName();
+
     // Get pending count
-    const pending = getPendingRecipients();
+    const pending = getRecipientsForDocumentCreation();
 
     if (pending.length === 0) {
       ui.alert(
         'No Pending Recipients',
-        'All recipients either have documents created already or have non-pending status.\n\n' +
-        'To regenerate documents, clear the "Doc ID" column and set status back to "pending".',
+        `Sheet: "${sheetName}"\n\n` +
+        'All recipients either have documents created already.\n\n' +
+        'To regenerate documents, clear the "Doc ID" column.',
         ui.ButtonSet.OK
       );
       return;
@@ -984,9 +1097,11 @@ function createAllDocumentsUI() {
 
     const response = ui.alert(
       'Create All Documents',
-      `This will create ${pending.length} personalized document(s).\n\n` +
+      `Sheet: "${sheetName}"\n` +
+      `Recipients: ${pending.length}\n\n` +
       'Documents will be saved to your configured output folder.\n\n' +
-      'This may take a few moments. Continue?',
+      'This may take a few moments. Continue?\n\n' +
+      '(To change the sheet, cancel and use a different active sheet)',
       ui.ButtonSet.YES_NO
     );
 
@@ -1029,17 +1144,8 @@ function generateAllPdfsUI() {
   const ui = SpreadsheetApp.getUi();
 
   try {
-    // Check if PDF folder is configured
-    const pdfFolderId = getConfig(CONFIG_KEYS.PDF_FOLDER_ID);
-    if (!pdfFolderId) {
-      ui.alert(
-        'PDF Folder Not Configured',
-        'Please configure the PDF Folder ID in the Config sheet before generating PDFs.\n\n' +
-        'This is where your PDF files will be saved.',
-        ui.ButtonSet.OK
-      );
-      return;
-    }
+    // Get current sheet name for display
+    const sheetName = getCurrentRecipientSheetName();
 
     // Get recipients needing PDFs
     const recipients = getRecipientsNeedingPdfs();
@@ -1047,6 +1153,7 @@ function generateAllPdfsUI() {
     if (recipients.length === 0) {
       ui.alert(
         'No Documents to Convert',
+        `Sheet: "${sheetName}"\n\n` +
         'All recipients either have PDFs already or don\'t have documents yet.\n\n' +
         'To regenerate PDFs, clear the "PDF ID" column.',
         ui.ButtonSet.OK
@@ -1056,9 +1163,11 @@ function generateAllPdfsUI() {
 
     const response = ui.alert(
       'Generate PDFs',
-      `This will generate ${recipients.length} PDF(s) from personalized documents.\n\n` +
-      'PDFs will be saved to your configured PDF folder.\n\n' +
-      'This may take a few moments. Continue?',
+      `Sheet: "${sheetName}"\n` +
+      `Recipients: ${recipients.length}\n\n` +
+      'PDFs will be saved to your configured output folder.\n\n' +
+      'This may take a few moments. Continue?\n\n' +
+      '(To change the sheet, cancel and use a different active sheet)',
       ui.ButtonSet.YES_NO
     );
 
@@ -1617,25 +1726,30 @@ function createFirstDocumentUI() {
   const ui = SpreadsheetApp.getUi();
 
   try {
+    // Get current sheet name for display
+    const sheetName = getCurrentRecipientSheetName();
+
     // Get first recipient
     const allRecipients = getAllRecipientsFormatted();
 
     if (allRecipients.length === 0) {
       ui.alert(
         'No Recipients',
-        'No recipients found in the sheet.',
+        `Sheet: "${sheetName}"\n\nNo recipients found in the sheet.`,
         ui.ButtonSet.OK
       );
       return;
     }
 
     const firstRecipient = allRecipients[0];
+    const recipientEmail = firstRecipient.data.Email || '(no email)';
 
     // Check if document already exists
     if (firstRecipient.data['Doc ID'] && firstRecipient.data['Doc ID'].toString().trim() !== '') {
       const response = ui.alert(
         'Document Already Exists',
-        `First recipient (${firstRecipient.email}) already has a document.\n\n` +
+        `Sheet: "${sheetName}"\n` +
+        `First recipient: ${recipientEmail}\n\n` +
         'This will create a new document and replace the existing Doc ID.\n\n' +
         'Continue?',
         ui.ButtonSet.YES_NO
@@ -1647,8 +1761,8 @@ function createFirstDocumentUI() {
     } else {
       const response = ui.alert(
         'Create Document (First Row)',
-        `This will create a document for the first recipient:\n` +
-        `${firstRecipient.email}\n\n` +
+        `Sheet: "${sheetName}"\n` +
+        `First recipient: ${recipientEmail}\n\n` +
         'Continue?',
         ui.ButtonSet.YES_NO
       );
@@ -1686,16 +1800,8 @@ function generateFirstPdfUI() {
   const ui = SpreadsheetApp.getUi();
 
   try {
-    // Check if PDF folder is configured
-    const pdfFolderId = getConfig(CONFIG_KEYS.PDF_FOLDER_ID);
-    if (!pdfFolderId) {
-      ui.alert(
-        'PDF Folder Not Configured',
-        'Please configure the PDF Folder ID in the Config sheet before generating PDFs.',
-        ui.ButtonSet.OK
-      );
-      return;
-    }
+    // Get current sheet name for display
+    const sheetName = getCurrentRecipientSheetName();
 
     // Get first recipient
     const allRecipients = getAllRecipientsFormatted();
@@ -1703,19 +1809,20 @@ function generateFirstPdfUI() {
     if (allRecipients.length === 0) {
       ui.alert(
         'No Recipients',
-        'No recipients found in the sheet.',
+        `Sheet: "${sheetName}"\n\nNo recipients found in the sheet.`,
         ui.ButtonSet.OK
       );
       return;
     }
 
     const firstRecipient = allRecipients[0];
+    const recipientEmail = firstRecipient.data.Email || '(no email)';
 
     // Check if document exists
     if (!firstRecipient.data['Doc ID'] || firstRecipient.data['Doc ID'].toString().trim() === '') {
       ui.alert(
         'No Document Found',
-        'First recipient does not have a document yet.\n\n' +
+        `Sheet: "${sheetName}"\n\nFirst recipient does not have a document yet.\n\n` +
         'Please create a document first using "Create Document (First Row)".',
         ui.ButtonSet.OK
       );
@@ -1726,7 +1833,8 @@ function generateFirstPdfUI() {
     if (firstRecipient.data['PDF ID'] && firstRecipient.data['PDF ID'].toString().trim() !== '') {
       const response = ui.alert(
         'PDF Already Exists',
-        `First recipient (${firstRecipient.email}) already has a PDF.\n\n` +
+        `Sheet: "${sheetName}"\n` +
+        `First recipient: ${recipientEmail}\n\n` +
         'This will create a new PDF and replace the existing PDF ID.\n\n' +
         'Continue?',
         ui.ButtonSet.YES_NO
@@ -1738,8 +1846,8 @@ function generateFirstPdfUI() {
     } else {
       const response = ui.alert(
         'Generate PDF (First Row)',
-        `This will generate a PDF for the first recipient:\n` +
-        `${firstRecipient.email}\n\n` +
+        `Sheet: "${sheetName}"\n` +
+        `First recipient: ${recipientEmail}\n\n` +
         'Continue?',
         ui.ButtonSet.YES_NO
       );
