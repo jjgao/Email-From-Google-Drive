@@ -105,6 +105,75 @@ function deleteContinuationTrigger(functionName) {
 }
 
 /**
+ * Get batch processing status for all operations
+ * @returns {Object} Status object with doc and pdf batch info
+ */
+function getBatchStatus() {
+  const docState = getBatchState(BATCH_STATE_KEYS.DOC_CREATION_STATE);
+  const pdfState = getBatchState(BATCH_STATE_KEYS.PDF_GENERATION_STATE);
+
+  // Check for continuation triggers
+  const triggers = ScriptApp.getProjectTriggers();
+  const docTriggerExists = triggers.some(t => t.getHandlerFunction() === 'continueDocumentCreation');
+  const pdfTriggerExists = triggers.some(t => t.getHandlerFunction() === 'continuePdfGeneration');
+
+  return {
+    documentCreation: {
+      inProgress: !!docState,
+      state: docState,
+      triggerExists: docTriggerExists,
+      processed: docState ? docState.currentIndex : 0,
+      total: docState ? docState.recipientRows.length : 0,
+      remaining: docState ? docState.recipientRows.length - docState.currentIndex : 0,
+      sheetName: docState ? docState.sheetName : null
+    },
+    pdfGeneration: {
+      inProgress: !!pdfState,
+      state: pdfState,
+      triggerExists: pdfTriggerExists,
+      processed: pdfState ? pdfState.currentIndex : 0,
+      total: pdfState ? pdfState.recipientRows.length : 0,
+      remaining: pdfState ? pdfState.recipientRows.length - pdfState.currentIndex : 0,
+      sheetName: pdfState ? pdfState.sheetName : null
+    }
+  };
+}
+
+/**
+ * Manually continue document creation if it was interrupted
+ * @returns {Object} Results from continuation
+ */
+function manualContinueDocumentCreation() {
+  const state = getBatchState(BATCH_STATE_KEYS.DOC_CREATION_STATE);
+  if (!state) {
+    throw new Error('No document creation batch in progress. Nothing to continue.');
+  }
+  return createAllDocuments(true);
+}
+
+/**
+ * Manually continue PDF generation if it was interrupted
+ * @returns {Object} Results from continuation
+ */
+function manualContinuePdfGeneration() {
+  const state = getBatchState(BATCH_STATE_KEYS.PDF_GENERATION_STATE);
+  if (!state) {
+    throw new Error('No PDF generation batch in progress. Nothing to continue.');
+  }
+  return generateAllPdfs(true);
+}
+
+/**
+ * Cancel and clear all batch processing state
+ */
+function cancelAllBatchProcessing() {
+  clearBatchState(BATCH_STATE_KEYS.DOC_CREATION_STATE);
+  clearBatchState(BATCH_STATE_KEYS.PDF_GENERATION_STATE);
+  deleteContinuationTrigger('continueDocumentCreation');
+  deleteContinuationTrigger('continuePdfGeneration');
+}
+
+/**
  * Get or create an output folder for the current sheet
  * Creates folder structure: OutputFolder/SheetName/subfolder/
  * @param {string} subfolder - Subfolder name ('docs' or 'pdfs')

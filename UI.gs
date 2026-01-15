@@ -38,6 +38,10 @@ function onOpen() {
       .addItem('🔄 Regenerate All Documents', 'regenerateAllDocumentsUI')
       .addItem('🔄 Regenerate All PDFs', 'regenerateAllPdfsUI')
       .addSeparator()
+      .addItem('📊 Check Batch Status', 'checkBatchStatusUI')
+      .addItem('▶️ Continue Batch Processing', 'continueBatchProcessingUI')
+      .addItem('⏹️ Cancel Batch Processing', 'cancelBatchProcessingUI')
+      .addSeparator()
       .addSubMenu(ui.createMenu('Advanced')
         .addItem('🔍 Preview Orphan Files', 'previewOrphanFilesUI')
         .addItem('🗑️ Delete Orphan Files', 'deleteOrphanFilesUI')
@@ -1923,5 +1927,180 @@ function generateFirstPdfUI() {
   } catch (error) {
     SpreadsheetApp.getActiveSpreadsheet().toast('Failed to generate PDF', 'Error', 3);
     ui.alert('Error', `Failed to generate PDF:\n\n${error.message}`, ui.ButtonSet.OK);
+  }
+}
+
+/**
+ * Check batch processing status (UI wrapper)
+ */
+function checkBatchStatusUI() {
+  const ui = SpreadsheetApp.getUi();
+
+  try {
+    const status = getBatchStatus();
+
+    let message = 'BATCH PROCESSING STATUS\n\n';
+
+    // Document Creation Status
+    message += '📑 DOCUMENT CREATION\n';
+    if (status.documentCreation.inProgress) {
+      message += `Status: IN PROGRESS\n`;
+      message += `Sheet: "${status.documentCreation.sheetName}"\n`;
+      message += `Processed: ${status.documentCreation.processed} of ${status.documentCreation.total}\n`;
+      message += `Remaining: ${status.documentCreation.remaining}\n`;
+      message += `Trigger scheduled: ${status.documentCreation.triggerExists ? 'Yes' : 'No'}\n`;
+      if (!status.documentCreation.triggerExists) {
+        message += '⚠️ Trigger missing! Use "Continue Batch Processing" to resume.\n';
+      }
+    } else {
+      message += 'Status: Not running\n';
+    }
+
+    message += '\n';
+
+    // PDF Generation Status
+    message += '📕 PDF GENERATION\n';
+    if (status.pdfGeneration.inProgress) {
+      message += `Status: IN PROGRESS\n`;
+      message += `Sheet: "${status.pdfGeneration.sheetName}"\n`;
+      message += `Processed: ${status.pdfGeneration.processed} of ${status.pdfGeneration.total}\n`;
+      message += `Remaining: ${status.pdfGeneration.remaining}\n`;
+      message += `Trigger scheduled: ${status.pdfGeneration.triggerExists ? 'Yes' : 'No'}\n`;
+      if (!status.pdfGeneration.triggerExists) {
+        message += '⚠️ Trigger missing! Use "Continue Batch Processing" to resume.\n';
+      }
+    } else {
+      message += 'Status: Not running\n';
+    }
+
+    ui.alert('Batch Status', message, ui.ButtonSet.OK);
+
+  } catch (error) {
+    ui.alert('Error', `Failed to get batch status:\n\n${error.message}`, ui.ButtonSet.OK);
+  }
+}
+
+/**
+ * Manually continue batch processing (UI wrapper)
+ */
+function continueBatchProcessingUI() {
+  const ui = SpreadsheetApp.getUi();
+
+  try {
+    const status = getBatchStatus();
+
+    // Check what's in progress
+    const docInProgress = status.documentCreation.inProgress;
+    const pdfInProgress = status.pdfGeneration.inProgress;
+
+    if (!docInProgress && !pdfInProgress) {
+      ui.alert('Nothing to Continue', 'No batch processing is currently in progress.', ui.ButtonSet.OK);
+      return;
+    }
+
+    let message = 'The following batch operations can be continued:\n\n';
+    if (docInProgress) {
+      message += `📑 Document Creation: ${status.documentCreation.remaining} remaining\n`;
+    }
+    if (pdfInProgress) {
+      message += `📕 PDF Generation: ${status.pdfGeneration.remaining} remaining\n`;
+    }
+    message += '\nContinue processing?';
+
+    const response = ui.alert('Continue Batch Processing', message, ui.ButtonSet.YES_NO);
+
+    if (response !== ui.Button.YES) {
+      return;
+    }
+
+    // Continue document creation first if in progress
+    if (docInProgress) {
+      SpreadsheetApp.getActiveSpreadsheet().toast('Continuing document creation...', 'Processing', -1);
+      const results = manualContinueDocumentCreation();
+
+      if (results.isPartial) {
+        ui.alert(
+          'Processing Continues',
+          `Processed ${results.processed} of ${results.total}.\n\n` +
+          'Processing will continue automatically in the background.',
+          ui.ButtonSet.OK
+        );
+      } else {
+        SpreadsheetApp.getActiveSpreadsheet().toast('Document creation complete!', 'Success', 3);
+        ui.alert(
+          'Document Creation Complete',
+          `Succeeded: ${results.success}\nFailed: ${results.failed}`,
+          ui.ButtonSet.OK
+        );
+      }
+      return;
+    }
+
+    // Continue PDF generation if in progress
+    if (pdfInProgress) {
+      SpreadsheetApp.getActiveSpreadsheet().toast('Continuing PDF generation...', 'Processing', -1);
+      const results = manualContinuePdfGeneration();
+
+      if (results.isPartial) {
+        ui.alert(
+          'Processing Continues',
+          `Processed ${results.processed} of ${results.total}.\n\n` +
+          'Processing will continue automatically in the background.',
+          ui.ButtonSet.OK
+        );
+      } else {
+        SpreadsheetApp.getActiveSpreadsheet().toast('PDF generation complete!', 'Success', 3);
+        ui.alert(
+          'PDF Generation Complete',
+          `Succeeded: ${results.success}\nFailed: ${results.failed}`,
+          ui.ButtonSet.OK
+        );
+      }
+    }
+
+  } catch (error) {
+    ui.alert('Error', `Failed to continue batch processing:\n\n${error.message}`, ui.ButtonSet.OK);
+  }
+}
+
+/**
+ * Cancel all batch processing (UI wrapper)
+ */
+function cancelBatchProcessingUI() {
+  const ui = SpreadsheetApp.getUi();
+
+  try {
+    const status = getBatchStatus();
+
+    // Check what's in progress
+    const docInProgress = status.documentCreation.inProgress;
+    const pdfInProgress = status.pdfGeneration.inProgress;
+
+    if (!docInProgress && !pdfInProgress) {
+      ui.alert('Nothing to Cancel', 'No batch processing is currently in progress.', ui.ButtonSet.OK);
+      return;
+    }
+
+    let message = '⚠️ WARNING: This will cancel the following batch operations:\n\n';
+    if (docInProgress) {
+      message += `📑 Document Creation: ${status.documentCreation.remaining} remaining (will NOT be processed)\n`;
+    }
+    if (pdfInProgress) {
+      message += `📕 PDF Generation: ${status.pdfGeneration.remaining} remaining (will NOT be processed)\n`;
+    }
+    message += '\nAlready processed items will remain. Continue with cancellation?';
+
+    const response = ui.alert('Cancel Batch Processing', message, ui.ButtonSet.YES_NO);
+
+    if (response !== ui.Button.YES) {
+      return;
+    }
+
+    cancelAllBatchProcessing();
+
+    ui.alert('Cancelled', 'All batch processing has been cancelled.\n\nAlready processed items remain intact.', ui.ButtonSet.OK);
+
+  } catch (error) {
+    ui.alert('Error', `Failed to cancel batch processing:\n\n${error.message}`, ui.ButtonSet.OK);
   }
 }
