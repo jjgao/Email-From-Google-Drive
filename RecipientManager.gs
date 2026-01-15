@@ -79,7 +79,8 @@ function getRecipientSheet() {
  */
 function getAllRecipients() {
   const sheet = getRecipientSheet();
-  const data = sheet.getDataRange().getValues();
+  // Use getDisplayValues() to preserve number/date formatting (e.g., $1,000 instead of 1000)
+  const data = sheet.getDataRange().getDisplayValues();
 
   if (data.length < 2) {
     throw new Error('No recipients found. Please add recipients to the sheet.');
@@ -297,9 +298,9 @@ function ensureRequiredColumns() {
   const filenameColIndex = updatedHeaders.indexOf('Filename') + 1;
   const statusColIndex = updatedHeaders.indexOf('Email Status') + 1;
 
-  // Get all data for processing
+  // Get all data for processing (use getDisplayValues to preserve formatting)
   const dataRange = sheet.getRange(2, 1, lastRow - 1, updatedLastColumn);
-  const allData = dataRange.getValues();
+  const allData = dataRange.getDisplayValues();
 
   // Process each row
   for (let i = 0; i < allData.length; i++) {
