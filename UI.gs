@@ -13,6 +13,7 @@ function onOpen() {
     // Top Level - Document & PDF Generation
     .addItem('📑 Create All Documents', 'createAllDocumentsUI')
     .addItem('📕 Generate All PDFs', 'generateAllPdfsUI')
+    .addItem('📑📕 Generate All Docs & PDFs', 'generateAllDocsAndPdfsUI')
     .addItem('🚀 Send Campaign', 'sendCampaignUI')
     .addSeparator()
     // Reports & Monitoring
@@ -1104,7 +1105,7 @@ function createAllDocumentsUI() {
       `Recipients: ${pending.length}\n\n` +
       'Documents will be saved to your configured output folder.\n\n';
 
-    if (pending.length > 50) {
+    if (pending.length > 100) {
       confirmMessage += '⚠️ Large batch detected. Processing will continue automatically in the background if it takes too long.\n\n';
     }
 
@@ -1198,7 +1199,7 @@ function generateAllPdfsUI() {
       `Recipients: ${recipients.length}\n\n` +
       'PDFs will be saved to your configured output folder.\n\n';
 
-    if (recipients.length > 50) {
+    if (recipients.length > 100) {
       confirmMessage += '⚠️ Large batch detected. Processing will continue automatically in the background if it takes too long.\n\n';
     }
 
@@ -1260,6 +1261,141 @@ function generateAllPdfsUI() {
   } catch (error) {
     SpreadsheetApp.getActiveSpreadsheet().toast('Failed to generate PDFs', 'Error', 3);
     ui.alert('Error', `Failed to generate PDFs:\n\n${error.message}`, ui.ButtonSet.OK);
+  }
+}
+
+/**
+ * Generate all documents and PDFs in one operation (UI wrapper)
+ */
+function generateAllDocsAndPdfsUI() {
+  const ui = SpreadsheetApp.getUi();
+
+  try {
+    // Get current sheet name for display
+    const sheetName = getCurrentRecipientSheetName();
+
+    // Get counts for both operations
+    const pendingDocs = getRecipientsForDocumentCreation();
+    const allRecipients = getAllRecipientsFormatted();
+
+    // Count recipients that will need PDFs after docs are created
+    const existingDocsCount = allRecipients.filter(r => {
+      const docId = (r.data['Doc ID'] || '').toString().trim();
+      return docId !== '';
+    }).length;
+
+    const totalForPdfs = existingDocsCount + pendingDocs.length;
+
+    if (pendingDocs.length === 0 && existingDocsCount === 0) {
+      ui.alert(
+        'Nothing to Process',
+        `Sheet: "${sheetName}"\n\n` +
+        'No recipients need documents or PDFs.',
+        ui.ButtonSet.OK
+      );
+      return;
+    }
+
+    // Build confirmation message
+    let confirmMessage = `Sheet: "${sheetName}"\n\n`;
+    confirmMessage += `Documents to create: ${pendingDocs.length}\n`;
+    confirmMessage += `PDFs to generate: ${totalForPdfs} (after docs)\n\n`;
+    confirmMessage += 'This will:\n';
+    confirmMessage += '1. Create documents for recipients without Doc ID\n';
+    confirmMessage += '2. Generate PDFs for all recipients with Doc ID\n\n';
+
+    if (pendingDocs.length + totalForPdfs > 100) {
+      confirmMessage += '⚠️ Large batch detected. Processing will continue automatically in the background if it takes too long.\n\n';
+    }
+
+    confirmMessage += 'Continue?';
+
+    const response = ui.alert(
+      'Generate All Docs & PDFs',
+      confirmMessage,
+      ui.ButtonSet.YES_NO
+    );
+
+    if (response !== ui.Button.YES) {
+      return;
+    }
+
+    // Step 1: Create documents
+    if (pendingDocs.length > 0) {
+      SpreadsheetApp.getActiveSpreadsheet().toast(`Creating ${pendingDocs.length} documents...`, 'Step 1/2', -1);
+
+      const docResults = createAllDocuments();
+
+      if (docResults.isPartial) {
+        ui.alert(
+          'Processing In Progress',
+          `Sheet: "${sheetName}"\n\n` +
+          'Document creation is running in the background.\n\n' +
+          `Processed: ${docResults.processed} of ${docResults.total}\n\n` +
+          'PDF generation will need to be started separately after documents complete.\n' +
+          'Use "Check Batch Status" to monitor progress.',
+          ui.ButtonSet.OK
+        );
+        return;
+      }
+
+      SpreadsheetApp.getActiveSpreadsheet().toast(
+        `Documents: ${docResults.success} created, ${docResults.failed} failed`,
+        'Step 1 Complete',
+        3
+      );
+    }
+
+    // Step 2: Generate PDFs
+    // Re-check recipients needing PDFs (includes newly created docs)
+    const recipientsNeedingPdfs = getRecipientsNeedingPdfs();
+
+    if (recipientsNeedingPdfs.length === 0) {
+      ui.alert(
+        'Documents Created - No PDFs Needed',
+        `Sheet: "${sheetName}"\n\n` +
+        `Documents created: ${pendingDocs.length > 0 ? pendingDocs.length : 0}\n\n` +
+        'All recipients already have PDFs or no documents exist.',
+        ui.ButtonSet.OK
+      );
+      return;
+    }
+
+    SpreadsheetApp.getActiveSpreadsheet().toast(`Generating ${recipientsNeedingPdfs.length} PDFs...`, 'Step 2/2', -1);
+
+    const pdfResults = generateAllPdfs();
+
+    if (pdfResults.isPartial) {
+      ui.alert(
+        'Processing In Progress',
+        `Sheet: "${sheetName}"\n\n` +
+        'Documents created successfully.\n\n' +
+        'PDF generation is running in the background.\n' +
+        `Processed: ${pdfResults.processed} of ${pdfResults.total}\n\n` +
+        'Use "Check Batch Status" to monitor progress.',
+        ui.ButtonSet.OK
+      );
+      return;
+    }
+
+    SpreadsheetApp.getActiveSpreadsheet().toast('All documents and PDFs complete!', 'Success', 3);
+
+    // Show final results
+    let message = 'RESULTS\n\n';
+    if (pendingDocs.length > 0) {
+      message += `Documents Created: ${pendingDocs.length}\n`;
+    }
+    message += `PDFs Generated: ${pdfResults.success}\n`;
+    if (pdfResults.failed > 0) {
+      message += `PDFs Failed: ${pdfResults.failed}\n`;
+    }
+    message += '\nCheck the Email Logs sheet for details.';
+
+    ui.alert('Generation Complete', message, ui.ButtonSet.OK);
+
+  } catch (error) {
+    SpreadsheetApp.getActiveSpreadsheet().toast('Operation failed', 'Error', 3);
+    ui.alert('Error', `Failed to generate docs/PDFs:\n\n${error.message}`, ui.ButtonSet.OK);
   }
 }
 
