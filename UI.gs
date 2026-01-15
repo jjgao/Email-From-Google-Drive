@@ -1095,13 +1095,20 @@ function createAllDocumentsUI() {
       return;
     }
 
+    // Warn about large batches
+    let confirmMessage = `Sheet: "${sheetName}"\n` +
+      `Recipients: ${pending.length}\n\n` +
+      'Documents will be saved to your configured output folder.\n\n';
+
+    if (pending.length > 50) {
+      confirmMessage += '⚠️ Large batch detected. Processing will continue automatically in the background if it takes too long.\n\n';
+    }
+
+    confirmMessage += 'Continue?\n\n(To change the sheet, cancel and use a different active sheet)';
+
     const response = ui.alert(
       'Create All Documents',
-      `Sheet: "${sheetName}"\n` +
-      `Recipients: ${pending.length}\n\n` +
-      'Documents will be saved to your configured output folder.\n\n' +
-      'This may take a few moments. Continue?\n\n' +
-      '(To change the sheet, cancel and use a different active sheet)',
+      confirmMessage,
       ui.ButtonSet.YES_NO
     );
 
@@ -1112,6 +1119,27 @@ function createAllDocumentsUI() {
     SpreadsheetApp.getActiveSpreadsheet().toast(`Creating ${pending.length} documents...`, 'Processing', -1);
 
     const results = createAllDocuments();
+
+    // Handle partial results (batch processing)
+    if (results.isPartial) {
+      SpreadsheetApp.getActiveSpreadsheet().toast(
+        `Processing ${results.processed} of ${results.total}. Continuing in background...`,
+        'Batch Processing',
+        10
+      );
+
+      ui.alert(
+        'Processing In Progress',
+        `Sheet: "${sheetName}"\n\n` +
+        `Processed: ${results.processed} of ${results.total}\n` +
+        `Succeeded so far: ${results.success}\n` +
+        `Failed so far: ${results.failed}\n\n` +
+        'Processing will continue automatically in the background.\n' +
+        'You will see a notification when complete.',
+        ui.ButtonSet.OK
+      );
+      return;
+    }
 
     SpreadsheetApp.getActiveSpreadsheet().toast('Document creation complete!', 'Success', 3);
 
@@ -1161,13 +1189,20 @@ function generateAllPdfsUI() {
       return;
     }
 
+    // Warn about large batches
+    let confirmMessage = `Sheet: "${sheetName}"\n` +
+      `Recipients: ${recipients.length}\n\n` +
+      'PDFs will be saved to your configured output folder.\n\n';
+
+    if (recipients.length > 50) {
+      confirmMessage += '⚠️ Large batch detected. Processing will continue automatically in the background if it takes too long.\n\n';
+    }
+
+    confirmMessage += 'Continue?\n\n(To change the sheet, cancel and use a different active sheet)';
+
     const response = ui.alert(
       'Generate PDFs',
-      `Sheet: "${sheetName}"\n` +
-      `Recipients: ${recipients.length}\n\n` +
-      'PDFs will be saved to your configured output folder.\n\n' +
-      'This may take a few moments. Continue?\n\n' +
-      '(To change the sheet, cancel and use a different active sheet)',
+      confirmMessage,
       ui.ButtonSet.YES_NO
     );
 
@@ -1178,6 +1213,27 @@ function generateAllPdfsUI() {
     SpreadsheetApp.getActiveSpreadsheet().toast(`Generating ${recipients.length} PDFs...`, 'Processing', -1);
 
     const results = generateAllPdfs();
+
+    // Handle partial results (batch processing)
+    if (results.isPartial) {
+      SpreadsheetApp.getActiveSpreadsheet().toast(
+        `Processing ${results.processed} of ${results.total}. Continuing in background...`,
+        'Batch Processing',
+        10
+      );
+
+      ui.alert(
+        'Processing In Progress',
+        `Sheet: "${sheetName}"\n\n` +
+        `Processed: ${results.processed} of ${results.total}\n` +
+        `Succeeded so far: ${results.success}\n` +
+        `Failed so far: ${results.failed}\n\n` +
+        'Processing will continue automatically in the background.\n' +
+        'You will see a notification when complete.',
+        ui.ButtonSet.OK
+      );
+      return;
+    }
 
     SpreadsheetApp.getActiveSpreadsheet().toast('PDF generation complete!', 'Success', 3);
 
