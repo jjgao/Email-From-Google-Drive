@@ -6,7 +6,7 @@ Send personalized emails using templates from Google Docs and recipient data fro
 
 This Google Apps Script application allows you to send personalized email campaigns directly from Google Sheets. It uses Google Docs for email templates with placeholder support and provides a simple menu-based interface for non-technical users.
 
-**Current Version: 0.3.0** - Multi-Sheet Support & Improved Folder Organization
+**Current Version: 0.4.0** - Batch Processing & Large Dataset Support
 
 ## Features (MVP1.1)
 
@@ -28,11 +28,14 @@ This Google Apps Script application allows you to send personalized email campai
 - ✅ **Orphan file cleanup** - Remove files not matching any recipient
 - ✅ **Multi-sheet support** - Work with multiple recipient sheets in the same spreadsheet
 - ✅ **Auto-organized folders** - Files automatically organized in `OutputFolder/SheetName/docs/` and `OutputFolder/SheetName/pdfs/`
+- ✅ **Batch processing** - Handle large datasets with automatic continuation
+- ✅ **Combined generation** - Generate all docs & PDFs in one operation
 
 ### System
 - ✅ **Comprehensive logging** - All activities logged to a sheet
 - ✅ **Simple UI** - Custom menu in Google Sheets for easy access
 - ✅ **Config sheet** - Easy configuration management
+- ✅ **Batch status monitoring** - Check progress and manually continue interrupted batches
 
 ## Installation
 
@@ -307,15 +310,29 @@ Run the system test from Apps Script editor:
 
 ## Limitations (MVP1.1)
 
-- ❌ No batch processing with delays (sends all at once)
 - ❌ No automatic retry for failed emails
-- ❌ No personalized attachments
+- ❌ No personalized attachments (same attachment for all recipients)
 - ❌ No scheduled sending
 - ❌ Basic HTML only (complex layouts not supported)
 
-These features will be added in future versions (MVP2, MVP3).
+These features may be added in future versions.
 
 ## Version History
+
+### v0.4.0 (2026-01-14) - Batch Processing & Large Dataset Support
+**New Features:**
+- **Batch processing**: Automatically handles Google Apps Script execution time limits (6 minutes)
+- **Automatic continuation**: Long-running operations continue automatically in the background via triggers
+- **Batch status monitoring**: New menu item to check progress of background operations
+- **Manual continuation**: Resume interrupted batches manually if triggers fail
+- **Cancel batch processing**: Stop and clear batch state when needed
+- **Combined docs & PDFs generation**: New "Generate All Docs & PDFs" menu item for one-click operation
+
+**Improvements:**
+- Large batch warning threshold increased to 100 items
+- Better progress feedback during batch operations
+- Toast notifications when background processing completes
+- State persistence across execution batches
 
 ### v0.3.0 (2026-01-14) - Multi-Sheet Support & Improved Folder Organization
 **New Features:**
