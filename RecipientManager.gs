@@ -3,19 +3,74 @@
  * Handles reading recipients from Google Sheets and validating email addresses
  */
 
+// Key for storing selected recipient sheet in document properties
+const SELECTED_SHEET_KEY = 'selectedRecipientSheet';
+
+/**
+ * Get the selected recipient sheet name from document properties
+ * @returns {string|null} Selected sheet name or null if not set
+ */
+function getSelectedSheetName() {
+  const props = PropertiesService.getDocumentProperties();
+  return props.getProperty(SELECTED_SHEET_KEY);
+}
+
+/**
+ * Set the selected recipient sheet name in document properties
+ * @param {string} sheetName - Name of the sheet to select
+ */
+function setSelectedSheetName(sheetName) {
+  const props = PropertiesService.getDocumentProperties();
+  props.setProperty(SELECTED_SHEET_KEY, sheetName);
+}
+
+/**
+ * Clear the selected recipient sheet (will use active sheet)
+ */
+function clearSelectedSheetName() {
+  const props = PropertiesService.getDocumentProperties();
+  props.deleteProperty(SELECTED_SHEET_KEY);
+}
+
 /**
  * Get the recipient sheet
+ * Uses: 1) stored selection, 2) active sheet if it's not Config/Log
  * @returns {GoogleAppsScript.Spreadsheet.Sheet} Recipient sheet
  */
 function getRecipientSheet() {
-  const sheetName = getConfig(CONFIG_KEYS.RECIPIENT_SHEET_NAME);
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
 
-  if (!sheet) {
-    throw new Error(`Recipient sheet "${sheetName}" not found. Please create it or update configuration.`);
+  // First, try the stored selection
+  const selectedName = getSelectedSheetName();
+  if (selectedName) {
+    const sheet = spreadsheet.getSheetByName(selectedName);
+    if (sheet) {
+      return sheet;
+    }
+    // Clear invalid selection
+    clearSelectedSheetName();
   }
 
-  return sheet;
+  // Fall back to active sheet if it's not a system sheet
+  const activeSheet = spreadsheet.getActiveSheet();
+  const activeSheetName = activeSheet.getName();
+
+  // Don't use system sheets
+  const systemSheets = ['Config', 'Email Logs'];
+  if (!systemSheets.includes(activeSheetName)) {
+    return activeSheet;
+  }
+
+  // If active sheet is a system sheet, try to find the first data sheet
+  const sheets = spreadsheet.getSheets();
+  for (const sheet of sheets) {
+    const name = sheet.getName();
+    if (!systemSheets.includes(name)) {
+      return sheet;
+    }
+  }
+
+  throw new Error('No recipient sheet found. Please create a sheet with recipient data.');
 }
 
 /**
@@ -86,7 +141,7 @@ function getPendingRecipients() {
   const allRecipients = getAllRecipients();
 
   return allRecipients.filter(recipient => {
-    const status = (recipient.Status || '').toString().trim().toLowerCase();
+    const status = (recipient['Email Status'] || '').toString().trim().toLowerCase();
     // Include if status is empty or 'pending'
     return status === '' || status === 'pending';
   });
@@ -142,35 +197,35 @@ function updateRecipientStatus(rowIndex, status) {
   const sheet = getRecipientSheet();
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
 
-  // Find Status column index
-  const statusColumnIndex = headers.indexOf('Status') + 1;
+  // Find Email Status column index
+  const statusColumnIndex = headers.indexOf('Email Status') + 1;
 
   if (statusColumnIndex > 0) {
     sheet.getRange(rowIndex, statusColumnIndex).setValue(status);
   } else {
-    // Status column doesn't exist, add it
+    // Email Status column doesn't exist, add it
     const lastColumn = sheet.getLastColumn();
-    sheet.getRange(1, lastColumn + 1).setValue('Status');
+    sheet.getRange(1, lastColumn + 1).setValue('Email Status');
     sheet.getRange(rowIndex, lastColumn + 1).setValue(status);
   }
 }
 
 /**
- * Ensure Status column exists in recipient sheet
+ * Ensure Email Status column exists in recipient sheet
  */
 function ensureStatusColumn() {
   const sheet = getRecipientSheet();
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
 
-  // Check if Status column exists
-  if (headers.indexOf('Status') === -1) {
+  // Check if Email Status column exists
+  if (headers.indexOf('Email Status') === -1) {
     const lastColumn = sheet.getLastColumn();
-    sheet.getRange(1, lastColumn + 1).setValue('Status');
+    sheet.getRange(1, lastColumn + 1).setValue('Email Status');
   }
 }
 
 /**
- * Ensure all required columns exist: Filename, Status, Doc ID, PDF ID
+ * Ensure all required columns exist: Filename, Doc ID, PDF ID, Email Status
  * Creates missing columns and fills default values
  * @returns {Object} Results with columns created and values filled
  */
@@ -193,7 +248,7 @@ function ensureRequiredColumns() {
   const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
 
   // Define required columns in order they should appear
-  const requiredColumns = ['Filename', 'Status', 'Doc ID', 'PDF ID'];
+  const requiredColumns = ['Filename', 'Doc ID', 'PDF ID', 'Email Status'];
 
   // Track current headers (will be updated as we add columns)
   let currentHeaders = [...headers];
@@ -215,8 +270,8 @@ function ensureRequiredColumns() {
       // Set column width based on column type
       if (colName === 'Filename') {
         sheet.setColumnWidth(currentLastColumn, 200);
-      } else if (colName === 'Status') {
-        sheet.setColumnWidth(currentLastColumn, 80);
+      } else if (colName === 'Email Status') {
+        sheet.setColumnWidth(currentLastColumn, 100);
       } else {
         sheet.setColumnWidth(currentLastColumn, 120);
       }
@@ -240,7 +295,7 @@ function ensureRequiredColumns() {
 
   // Get column indices
   const filenameColIndex = updatedHeaders.indexOf('Filename') + 1;
-  const statusColIndex = updatedHeaders.indexOf('Status') + 1;
+  const statusColIndex = updatedHeaders.indexOf('Email Status') + 1;
 
   // Get all data for processing
   const dataRange = sheet.getRange(2, 1, lastRow - 1, updatedLastColumn);
@@ -328,7 +383,7 @@ function getRecipientSummary() {
   };
 
   recipients.forEach(recipient => {
-    const status = (recipient.Status || 'pending').toString().toLowerCase();
+    const status = (recipient['Email Status'] || 'pending').toString().toLowerCase();
     if (status === 'sent') {
       summary.sent++;
     } else if (status === 'failed') {

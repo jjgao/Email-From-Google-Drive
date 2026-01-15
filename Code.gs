@@ -48,13 +48,9 @@ function initializeApp() {
 
   // Ensure status column exists if recipient sheet exists
   try {
-    const recipientSheetName = getConfig(CONFIG_KEYS.RECIPIENT_SHEET_NAME);
-    if (recipientSheetName) {
-      const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(recipientSheetName);
-      if (sheet) {
-        ensureStatusColumn();
-      }
-    }
+    // Try to get the recipient sheet and ensure status column exists
+    getRecipientSheet();
+    ensureStatusColumn();
   } catch (error) {
     console.log('Recipient sheet not found or status column already exists');
   }
@@ -238,8 +234,8 @@ function createSampleRecipientSheet() {
     sheet = spreadsheet.insertSheet(sheetName);
   }
 
-  // Add headers
-  const headers = ['Email', 'First Name', 'Last Name', 'Address1', 'Address2', 'City', 'State', 'ZIP', 'Status'];
+  // Add headers (Email Status will be added later by ensureRequiredColumns)
+  const headers = ['Email', 'First Name', 'Last Name', 'Address1', 'Address2', 'City', 'State', 'ZIP'];
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
 
   // Format headers
