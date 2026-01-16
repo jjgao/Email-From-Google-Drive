@@ -1220,17 +1220,12 @@ function generateAllDocsAndPdfsUI() {
 
     // Get counts for both operations
     const pendingDocs = getRecipientsForDocumentCreation();
-    const allRecipients = getAllRecipientsFormatted();
+    const currentlyNeedingPdfs = getRecipientsNeedingPdfs();
 
-    // Count recipients that will need PDFs after docs are created
-    const existingDocsCount = allRecipients.filter(r => {
-      const docId = (r.data['Doc ID'] || '').toString().trim();
-      return docId !== '';
-    }).length;
+    // PDFs to generate = those currently needing PDFs + new docs being created
+    const totalForPdfs = currentlyNeedingPdfs.length + pendingDocs.length;
 
-    const totalForPdfs = existingDocsCount + pendingDocs.length;
-
-    if (pendingDocs.length === 0 && existingDocsCount === 0) {
+    if (pendingDocs.length === 0 && currentlyNeedingPdfs.length === 0) {
       ui.alert(
         'Nothing to Process',
         `Sheet: "${sheetName}"\n\n` +
