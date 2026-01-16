@@ -6,7 +6,7 @@ Send personalized emails using templates from Google Docs and recipient data fro
 
 This Google Apps Script application allows you to send personalized email campaigns directly from Google Sheets. It uses Google Docs for email templates with placeholder support and provides a simple menu-based interface for non-technical users.
 
-**Current Version: 0.4.0** - Combined Generation & Verification
+**Current Version: 0.0.4** - Combined Generation & Verification
 
 ## Features (MVP1.1)
 
@@ -319,13 +319,13 @@ These features may be added in future versions.
 
 ## Version History
 
-### v0.4.0 (2026-01-16) - Combined Generation & Verification
+### v0.0.4 (2026-01-16) - Combined Generation & Verification
 **New Features:**
 - **Combined docs & PDFs generation**: New "Generate All Docs & PDFs" menu item for one-click operation
 - **Document verification**: New "Verify Documents & PDFs" menu item to check if all files exist in Google Drive
 - **Format preservation**: Number/date/currency formatting from spreadsheet is now preserved in placeholders (e.g., $1,000 instead of 1000)
 
-### v0.3.0 (2026-01-14) - Multi-Sheet Support & Improved Folder Organization
+### v0.0.3 (2026-01-14) - Multi-Sheet Support & Improved Folder Organization
 **New Features:**
 - **Multi-sheet support**: Work with multiple recipient sheets in the same spreadsheet
 - **Auto-organized folders**: Files automatically organized in `OutputFolder/SheetName/docs/` and `OutputFolder/SheetName/pdfs/`
@@ -345,7 +345,7 @@ These features may be added in future versions.
 - Simplified configuration with fewer required settings
 - Better folder organization for multi-campaign workflows
 
-### v0.2.0 (2026-01-12) - Enhanced Filename Generation & Bug Fixes
+### v0.0.2 (2026-01-12) - Enhanced Filename Generation & Bug Fixes
 **New Features:**
 - **Fill Default Filenames**: New menu item to auto-generate filenames for all recipients
 - **Improved filename generation**: Better handling of missing First Name or Last Name
