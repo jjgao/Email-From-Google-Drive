@@ -39,9 +39,7 @@ function onOpen() {
       .addItem('🔄 Regenerate All Documents', 'regenerateAllDocumentsUI')
       .addItem('🔄 Regenerate All PDFs', 'regenerateAllPdfsUI')
       .addSeparator()
-      .addItem('📊 Check Batch Status', 'checkBatchStatusUI')
-      .addItem('▶️ Continue Batch Processing', 'continueBatchProcessingUI')
-      .addItem('⏹️ Cancel Batch Processing', 'cancelBatchProcessingUI')
+      .addItem('✅ Verify Documents & PDFs', 'verifyDocumentsUI')
       .addSeparator()
       .addSubMenu(ui.createMenu('Advanced')
         .addItem('🔍 Preview Orphan Files', 'previewOrphanFilesUI')
@@ -1100,16 +1098,10 @@ function createAllDocumentsUI() {
       return;
     }
 
-    // Warn about large batches
-    let confirmMessage = `Sheet: "${sheetName}"\n` +
+    const confirmMessage = `Sheet: "${sheetName}"\n` +
       `Recipients: ${pending.length}\n\n` +
-      'Documents will be saved to your configured output folder.\n\n';
-
-    if (pending.length > 100) {
-      confirmMessage += '⚠️ Large batch detected. Processing will continue automatically in the background if it takes too long.\n\n';
-    }
-
-    confirmMessage += 'Continue?\n\n(To change the sheet, cancel and use a different active sheet)';
+      'Documents will be saved to your configured output folder.\n\n' +
+      'Continue?\n\n(To change the sheet, cancel and use a different active sheet)';
 
     const response = ui.alert(
       'Create All Documents',
@@ -1124,27 +1116,6 @@ function createAllDocumentsUI() {
     SpreadsheetApp.getActiveSpreadsheet().toast(`Creating ${pending.length} documents...`, 'Processing', -1);
 
     const results = createAllDocuments();
-
-    // Handle partial results (batch processing)
-    if (results.isPartial) {
-      SpreadsheetApp.getActiveSpreadsheet().toast(
-        `Processing ${results.processed} of ${results.total}. Continuing in background...`,
-        'Batch Processing',
-        10
-      );
-
-      ui.alert(
-        'Processing In Progress',
-        `Sheet: "${sheetName}"\n\n` +
-        `Processed: ${results.processed} of ${results.total}\n` +
-        `Succeeded so far: ${results.success}\n` +
-        `Failed so far: ${results.failed}\n\n` +
-        'Processing will continue automatically in the background.\n' +
-        'You will see a notification when complete.',
-        ui.ButtonSet.OK
-      );
-      return;
-    }
 
     SpreadsheetApp.getActiveSpreadsheet().toast('Document creation complete!', 'Success', 3);
 
@@ -1194,16 +1165,10 @@ function generateAllPdfsUI() {
       return;
     }
 
-    // Warn about large batches
-    let confirmMessage = `Sheet: "${sheetName}"\n` +
+    const confirmMessage = `Sheet: "${sheetName}"\n` +
       `Recipients: ${recipients.length}\n\n` +
-      'PDFs will be saved to your configured output folder.\n\n';
-
-    if (recipients.length > 100) {
-      confirmMessage += '⚠️ Large batch detected. Processing will continue automatically in the background if it takes too long.\n\n';
-    }
-
-    confirmMessage += 'Continue?\n\n(To change the sheet, cancel and use a different active sheet)';
+      'PDFs will be saved to your configured output folder.\n\n' +
+      'Continue?\n\n(To change the sheet, cancel and use a different active sheet)';
 
     const response = ui.alert(
       'Generate PDFs',
@@ -1218,27 +1183,6 @@ function generateAllPdfsUI() {
     SpreadsheetApp.getActiveSpreadsheet().toast(`Generating ${recipients.length} PDFs...`, 'Processing', -1);
 
     const results = generateAllPdfs();
-
-    // Handle partial results (batch processing)
-    if (results.isPartial) {
-      SpreadsheetApp.getActiveSpreadsheet().toast(
-        `Processing ${results.processed} of ${results.total}. Continuing in background...`,
-        'Batch Processing',
-        10
-      );
-
-      ui.alert(
-        'Processing In Progress',
-        `Sheet: "${sheetName}"\n\n` +
-        `Processed: ${results.processed} of ${results.total}\n` +
-        `Succeeded so far: ${results.success}\n` +
-        `Failed so far: ${results.failed}\n\n` +
-        'Processing will continue automatically in the background.\n' +
-        'You will see a notification when complete.',
-        ui.ButtonSet.OK
-      );
-      return;
-    }
 
     SpreadsheetApp.getActiveSpreadsheet().toast('PDF generation complete!', 'Success', 3);
 
@@ -1303,11 +1247,6 @@ function generateAllDocsAndPdfsUI() {
     confirmMessage += 'This will:\n';
     confirmMessage += '1. Create documents for recipients without Doc ID\n';
     confirmMessage += '2. Generate PDFs for all recipients with Doc ID\n\n';
-
-    if (pendingDocs.length + totalForPdfs > 100) {
-      confirmMessage += '⚠️ Large batch detected. Processing will continue automatically in the background if it takes too long.\n\n';
-    }
-
     confirmMessage += 'Continue?';
 
     const response = ui.alert(
@@ -1320,24 +1259,13 @@ function generateAllDocsAndPdfsUI() {
       return;
     }
 
+    let docResults = null;
+
     // Step 1: Create documents
     if (pendingDocs.length > 0) {
       SpreadsheetApp.getActiveSpreadsheet().toast(`Creating ${pendingDocs.length} documents...`, 'Step 1/2', -1);
 
-      const docResults = createAllDocuments();
-
-      if (docResults.isPartial) {
-        ui.alert(
-          'Processing In Progress',
-          `Sheet: "${sheetName}"\n\n` +
-          'Document creation is running in the background.\n\n' +
-          `Processed: ${docResults.processed} of ${docResults.total}\n\n` +
-          'PDF generation will need to be started separately after documents complete.\n' +
-          'Use "Check Batch Status" to monitor progress.',
-          ui.ButtonSet.OK
-        );
-        return;
-      }
+      docResults = createAllDocuments();
 
       SpreadsheetApp.getActiveSpreadsheet().toast(
         `Documents: ${docResults.success} created, ${docResults.failed} failed`,
@@ -1354,7 +1282,7 @@ function generateAllDocsAndPdfsUI() {
       ui.alert(
         'Documents Created - No PDFs Needed',
         `Sheet: "${sheetName}"\n\n` +
-        `Documents created: ${pendingDocs.length > 0 ? pendingDocs.length : 0}\n\n` +
+        `Documents created: ${docResults ? docResults.success : 0}\n\n` +
         'All recipients already have PDFs or no documents exist.',
         ui.ButtonSet.OK
       );
@@ -1365,25 +1293,15 @@ function generateAllDocsAndPdfsUI() {
 
     const pdfResults = generateAllPdfs();
 
-    if (pdfResults.isPartial) {
-      ui.alert(
-        'Processing In Progress',
-        `Sheet: "${sheetName}"\n\n` +
-        'Documents created successfully.\n\n' +
-        'PDF generation is running in the background.\n' +
-        `Processed: ${pdfResults.processed} of ${pdfResults.total}\n\n` +
-        'Use "Check Batch Status" to monitor progress.',
-        ui.ButtonSet.OK
-      );
-      return;
-    }
-
     SpreadsheetApp.getActiveSpreadsheet().toast('All documents and PDFs complete!', 'Success', 3);
 
     // Show final results
     let message = 'RESULTS\n\n';
-    if (pendingDocs.length > 0) {
-      message += `Documents Created: ${pendingDocs.length}\n`;
+    if (docResults) {
+      message += `Documents Created: ${docResults.success}\n`;
+      if (docResults.failed > 0) {
+        message += `Documents Failed: ${docResults.failed}\n`;
+      }
     }
     message += `PDFs Generated: ${pdfResults.success}\n`;
     if (pdfResults.failed > 0) {
@@ -2067,176 +1985,73 @@ function generateFirstPdfUI() {
 }
 
 /**
- * Check batch processing status (UI wrapper)
+ * Verify that all documents and PDFs exist (UI wrapper)
  */
-function checkBatchStatusUI() {
+function verifyDocumentsUI() {
   const ui = SpreadsheetApp.getUi();
 
   try {
-    const status = getBatchStatus();
+    const sheetName = getCurrentRecipientSheetName();
 
-    let message = 'BATCH PROCESSING STATUS\n\n';
+    SpreadsheetApp.getActiveSpreadsheet().toast('Verifying documents and PDFs...', 'Processing', -1);
 
-    // Document Creation Status
-    message += '📑 DOCUMENT CREATION\n';
-    if (status.documentCreation.inProgress) {
-      message += `Status: IN PROGRESS\n`;
-      message += `Sheet: "${status.documentCreation.sheetName}"\n`;
-      message += `Processed: ${status.documentCreation.processed} of ${status.documentCreation.total}\n`;
-      message += `Remaining: ${status.documentCreation.remaining}\n`;
-      message += `Trigger scheduled: ${status.documentCreation.triggerExists ? 'Yes' : 'No'}\n`;
-      if (!status.documentCreation.triggerExists) {
-        message += '⚠️ Trigger missing! Use "Continue Batch Processing" to resume.\n';
+    const results = verifyDocumentsAndPdfs();
+
+    SpreadsheetApp.getActiveSpreadsheet().toast('Verification complete!', 'Done', 3);
+
+    // Build result message
+    let message = `Sheet: "${sheetName}"\n`;
+    message += `Total recipients: ${results.total}\n\n`;
+
+    // Documents summary
+    message += '📑 DOCUMENTS\n';
+    message += `With Doc ID: ${results.docs.expected}\n`;
+    message += `Verified (exist): ${results.docs.verified}\n`;
+    message += `Missing: ${results.docs.missing}\n`;
+    message += `Without Doc ID: ${results.noDocId}\n\n`;
+
+    // PDFs summary
+    message += '📕 PDFs\n';
+    message += `With PDF ID: ${results.pdfs.expected}\n`;
+    message += `Verified (exist): ${results.pdfs.verified}\n`;
+    message += `Missing: ${results.pdfs.missing}\n`;
+    message += `Without PDF ID: ${results.noPdfId}\n`;
+
+    // Show missing files if any
+    if (results.docs.missing > 0 || results.pdfs.missing > 0) {
+      message += '\n⚠️ MISSING FILES\n';
+
+      if (results.docs.missingList.length > 0) {
+        message += '\nMissing Documents:\n';
+        const docsToShow = results.docs.missingList.slice(0, 5);
+        docsToShow.forEach(item => {
+          message += `• ${item.email}\n`;
+        });
+        if (results.docs.missingList.length > 5) {
+          message += `... and ${results.docs.missingList.length - 5} more\n`;
+        }
       }
-    } else {
-      message += 'Status: Not running\n';
+
+      if (results.pdfs.missingList.length > 0) {
+        message += '\nMissing PDFs:\n';
+        const pdfsToShow = results.pdfs.missingList.slice(0, 5);
+        pdfsToShow.forEach(item => {
+          message += `• ${item.email}\n`;
+        });
+        if (results.pdfs.missingList.length > 5) {
+          message += `... and ${results.pdfs.missingList.length - 5} more\n`;
+        }
+      }
+
+      message += '\nTo fix: Clear the Doc ID/PDF ID for missing files and regenerate.';
+    } else if (results.docs.expected > 0 || results.pdfs.expected > 0) {
+      message += '\n✅ All files verified successfully!';
     }
 
-    message += '\n';
-
-    // PDF Generation Status
-    message += '📕 PDF GENERATION\n';
-    if (status.pdfGeneration.inProgress) {
-      message += `Status: IN PROGRESS\n`;
-      message += `Sheet: "${status.pdfGeneration.sheetName}"\n`;
-      message += `Processed: ${status.pdfGeneration.processed} of ${status.pdfGeneration.total}\n`;
-      message += `Remaining: ${status.pdfGeneration.remaining}\n`;
-      message += `Trigger scheduled: ${status.pdfGeneration.triggerExists ? 'Yes' : 'No'}\n`;
-      if (!status.pdfGeneration.triggerExists) {
-        message += '⚠️ Trigger missing! Use "Continue Batch Processing" to resume.\n';
-      }
-    } else {
-      message += 'Status: Not running\n';
-    }
-
-    ui.alert('Batch Status', message, ui.ButtonSet.OK);
+    ui.alert('Verification Results', message, ui.ButtonSet.OK);
 
   } catch (error) {
-    ui.alert('Error', `Failed to get batch status:\n\n${error.message}`, ui.ButtonSet.OK);
-  }
-}
-
-/**
- * Manually continue batch processing (UI wrapper)
- */
-function continueBatchProcessingUI() {
-  const ui = SpreadsheetApp.getUi();
-
-  try {
-    const status = getBatchStatus();
-
-    // Check what's in progress
-    const docInProgress = status.documentCreation.inProgress;
-    const pdfInProgress = status.pdfGeneration.inProgress;
-
-    if (!docInProgress && !pdfInProgress) {
-      ui.alert('Nothing to Continue', 'No batch processing is currently in progress.', ui.ButtonSet.OK);
-      return;
-    }
-
-    let message = 'The following batch operations can be continued:\n\n';
-    if (docInProgress) {
-      message += `📑 Document Creation: ${status.documentCreation.remaining} remaining\n`;
-    }
-    if (pdfInProgress) {
-      message += `📕 PDF Generation: ${status.pdfGeneration.remaining} remaining\n`;
-    }
-    message += '\nContinue processing?';
-
-    const response = ui.alert('Continue Batch Processing', message, ui.ButtonSet.YES_NO);
-
-    if (response !== ui.Button.YES) {
-      return;
-    }
-
-    // Continue document creation first if in progress
-    if (docInProgress) {
-      SpreadsheetApp.getActiveSpreadsheet().toast('Continuing document creation...', 'Processing', -1);
-      const results = manualContinueDocumentCreation();
-
-      if (results.isPartial) {
-        ui.alert(
-          'Processing Continues',
-          `Processed ${results.processed} of ${results.total}.\n\n` +
-          'Processing will continue automatically in the background.',
-          ui.ButtonSet.OK
-        );
-      } else {
-        SpreadsheetApp.getActiveSpreadsheet().toast('Document creation complete!', 'Success', 3);
-        ui.alert(
-          'Document Creation Complete',
-          `Succeeded: ${results.success}\nFailed: ${results.failed}`,
-          ui.ButtonSet.OK
-        );
-      }
-      return;
-    }
-
-    // Continue PDF generation if in progress
-    if (pdfInProgress) {
-      SpreadsheetApp.getActiveSpreadsheet().toast('Continuing PDF generation...', 'Processing', -1);
-      const results = manualContinuePdfGeneration();
-
-      if (results.isPartial) {
-        ui.alert(
-          'Processing Continues',
-          `Processed ${results.processed} of ${results.total}.\n\n` +
-          'Processing will continue automatically in the background.',
-          ui.ButtonSet.OK
-        );
-      } else {
-        SpreadsheetApp.getActiveSpreadsheet().toast('PDF generation complete!', 'Success', 3);
-        ui.alert(
-          'PDF Generation Complete',
-          `Succeeded: ${results.success}\nFailed: ${results.failed}`,
-          ui.ButtonSet.OK
-        );
-      }
-    }
-
-  } catch (error) {
-    ui.alert('Error', `Failed to continue batch processing:\n\n${error.message}`, ui.ButtonSet.OK);
-  }
-}
-
-/**
- * Cancel all batch processing (UI wrapper)
- */
-function cancelBatchProcessingUI() {
-  const ui = SpreadsheetApp.getUi();
-
-  try {
-    const status = getBatchStatus();
-
-    // Check what's in progress
-    const docInProgress = status.documentCreation.inProgress;
-    const pdfInProgress = status.pdfGeneration.inProgress;
-
-    if (!docInProgress && !pdfInProgress) {
-      ui.alert('Nothing to Cancel', 'No batch processing is currently in progress.', ui.ButtonSet.OK);
-      return;
-    }
-
-    let message = '⚠️ WARNING: This will cancel the following batch operations:\n\n';
-    if (docInProgress) {
-      message += `📑 Document Creation: ${status.documentCreation.remaining} remaining (will NOT be processed)\n`;
-    }
-    if (pdfInProgress) {
-      message += `📕 PDF Generation: ${status.pdfGeneration.remaining} remaining (will NOT be processed)\n`;
-    }
-    message += '\nAlready processed items will remain. Continue with cancellation?';
-
-    const response = ui.alert('Cancel Batch Processing', message, ui.ButtonSet.YES_NO);
-
-    if (response !== ui.Button.YES) {
-      return;
-    }
-
-    cancelAllBatchProcessing();
-
-    ui.alert('Cancelled', 'All batch processing has been cancelled.\n\nAlready processed items remain intact.', ui.ButtonSet.OK);
-
-  } catch (error) {
-    ui.alert('Error', `Failed to cancel batch processing:\n\n${error.message}`, ui.ButtonSet.OK);
+    SpreadsheetApp.getActiveSpreadsheet().toast('Verification failed', 'Error', 3);
+    ui.alert('Error', `Failed to verify documents:\n\n${error.message}`, ui.ButtonSet.OK);
   }
 }

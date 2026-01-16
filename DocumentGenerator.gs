@@ -13,166 +13,6 @@
  * @fileoverview Document and PDF generation module
  */
 
-// Batch processing constants
-const BATCH_CONFIG = {
-  MAX_EXECUTION_SECONDS: 270,  // Stop after 4.5 minutes (leave 1.5 min buffer for 6 min limit)
-  BATCH_SIZE: 25,              // Process this many items before checking time
-  CONTINUATION_DELAY_MS: 1000  // Delay before next batch trigger
-};
-
-// Script property keys for batch state
-const BATCH_STATE_KEYS = {
-  DOC_CREATION_STATE: 'batchDocCreationState',
-  PDF_GENERATION_STATE: 'batchPdfGenerationState'
-};
-
-/**
- * Get batch processing state from script properties
- * @param {string} stateKey - The state key to retrieve
- * @returns {Object|null} Saved state or null if none
- */
-function getBatchState(stateKey) {
-  const props = PropertiesService.getScriptProperties();
-  const stateJson = props.getProperty(stateKey);
-  if (!stateJson) return null;
-  try {
-    return JSON.parse(stateJson);
-  } catch (e) {
-    return null;
-  }
-}
-
-/**
- * Save batch processing state to script properties
- * @param {string} stateKey - The state key
- * @param {Object} state - State to save
- */
-function saveBatchState(stateKey, state) {
-  const props = PropertiesService.getScriptProperties();
-  props.setProperty(stateKey, JSON.stringify(state));
-}
-
-/**
- * Clear batch processing state
- * @param {string} stateKey - The state key to clear
- */
-function clearBatchState(stateKey) {
-  const props = PropertiesService.getScriptProperties();
-  props.deleteProperty(stateKey);
-}
-
-/**
- * Check if we're running out of time
- * @param {Date} startTime - When execution started
- * @returns {boolean} True if we should stop processing
- */
-function isTimeRunningOut(startTime) {
-  const elapsed = (new Date() - startTime) / 1000;
-  return elapsed > BATCH_CONFIG.MAX_EXECUTION_SECONDS;
-}
-
-/**
- * Schedule a continuation trigger for batch processing
- * @param {string} functionName - Function to call
- */
-function scheduleContinuation(functionName) {
-  // Delete any existing triggers for this function first
-  const triggers = ScriptApp.getProjectTriggers();
-  for (const trigger of triggers) {
-    if (trigger.getHandlerFunction() === functionName) {
-      ScriptApp.deleteTrigger(trigger);
-    }
-  }
-
-  // Create a new trigger to continue processing
-  ScriptApp.newTrigger(functionName)
-    .timeBased()
-    .after(BATCH_CONFIG.CONTINUATION_DELAY_MS)
-    .create();
-}
-
-/**
- * Delete continuation trigger for a function
- * @param {string} functionName - Function name
- */
-function deleteContinuationTrigger(functionName) {
-  const triggers = ScriptApp.getProjectTriggers();
-  for (const trigger of triggers) {
-    if (trigger.getHandlerFunction() === functionName) {
-      ScriptApp.deleteTrigger(trigger);
-    }
-  }
-}
-
-/**
- * Get batch processing status for all operations
- * @returns {Object} Status object with doc and pdf batch info
- */
-function getBatchStatus() {
-  const docState = getBatchState(BATCH_STATE_KEYS.DOC_CREATION_STATE);
-  const pdfState = getBatchState(BATCH_STATE_KEYS.PDF_GENERATION_STATE);
-
-  // Check for continuation triggers
-  const triggers = ScriptApp.getProjectTriggers();
-  const docTriggerExists = triggers.some(t => t.getHandlerFunction() === 'continueDocumentCreation');
-  const pdfTriggerExists = triggers.some(t => t.getHandlerFunction() === 'continuePdfGeneration');
-
-  return {
-    documentCreation: {
-      inProgress: !!docState,
-      state: docState,
-      triggerExists: docTriggerExists,
-      processed: docState ? docState.currentIndex : 0,
-      total: docState ? docState.recipientRows.length : 0,
-      remaining: docState ? docState.recipientRows.length - docState.currentIndex : 0,
-      sheetName: docState ? docState.sheetName : null
-    },
-    pdfGeneration: {
-      inProgress: !!pdfState,
-      state: pdfState,
-      triggerExists: pdfTriggerExists,
-      processed: pdfState ? pdfState.currentIndex : 0,
-      total: pdfState ? pdfState.recipientRows.length : 0,
-      remaining: pdfState ? pdfState.recipientRows.length - pdfState.currentIndex : 0,
-      sheetName: pdfState ? pdfState.sheetName : null
-    }
-  };
-}
-
-/**
- * Manually continue document creation if it was interrupted
- * @returns {Object} Results from continuation
- */
-function manualContinueDocumentCreation() {
-  const state = getBatchState(BATCH_STATE_KEYS.DOC_CREATION_STATE);
-  if (!state) {
-    throw new Error('No document creation batch in progress. Nothing to continue.');
-  }
-  return createAllDocuments(true);
-}
-
-/**
- * Manually continue PDF generation if it was interrupted
- * @returns {Object} Results from continuation
- */
-function manualContinuePdfGeneration() {
-  const state = getBatchState(BATCH_STATE_KEYS.PDF_GENERATION_STATE);
-  if (!state) {
-    throw new Error('No PDF generation batch in progress. Nothing to continue.');
-  }
-  return generateAllPdfs(true);
-}
-
-/**
- * Cancel and clear all batch processing state
- */
-function cancelAllBatchProcessing() {
-  clearBatchState(BATCH_STATE_KEYS.DOC_CREATION_STATE);
-  clearBatchState(BATCH_STATE_KEYS.PDF_GENERATION_STATE);
-  deleteContinuationTrigger('continueDocumentCreation');
-  deleteContinuationTrigger('continuePdfGeneration');
-}
-
 /**
  * Get or create an output folder for the current sheet
  * Creates folder structure: OutputFolder/SheetName/subfolder/
@@ -695,105 +535,45 @@ function replaceInDocument(body, data) {
 }
 
 /**
- * Create documents for all pending recipients (with batch processing)
- * @param {boolean} isContinuation - True if this is a continuation from a previous batch
+ * Create documents for all pending recipients
  * @returns {Object} Results with success and failure counts
  */
-function createAllDocuments(isContinuation = false) {
-  const startTime = new Date();
-  const stateKey = BATCH_STATE_KEYS.DOC_CREATION_STATE;
-
-  // Get saved state if this is a continuation
-  let state = isContinuation ? getBatchState(stateKey) : null;
-
-  // Initialize or restore state
-  if (!state) {
-    const validation = validateConfig();
-    if (!validation.isValid) {
-      throw new Error(`Missing required configuration: ${validation.missing.join(', ')}`);
-    }
-
-    // Ensure required columns exist before proceeding
-    ensureRequiredColumns();
-
-    const templateDocId = getConfig(CONFIG_KEYS.PDF_TEMPLATE_DOC_ID);
-
-    if (!templateDocId) {
-      throw new Error('PDF Template Document ID not configured. Please set it in the Config sheet to generate documents.');
-    }
-
-    // Get or create the docs folder for this sheet
-    const folderId = getOrCreateOutputFolder('docs');
-
-    const recipients = getRecipientsForDocumentCreation();
-
-    if (recipients.length === 0) {
-      throw new Error('No recipients without documents found. All recipients already have Doc IDs.');
-    }
-
-    state = {
-      templateDocId,
-      folderId,
-      sheetName: getCurrentRecipientSheetName(),
-      recipientRows: recipients.map(r => r.row),  // Store row numbers to process
-      currentIndex: 0,
-      results: {
-        total: recipients.length,
-        success: 0,
-        failed: 0,
-        errors: []
-      }
-    };
+function createAllDocuments() {
+  const validation = validateConfig();
+  if (!validation.isValid) {
+    throw new Error(`Missing required configuration: ${validation.missing.join(', ')}`);
   }
 
-  // Get fresh recipient data for remaining rows
-  const allRecipients = getAllRecipientsFormatted();
-  const rowToRecipient = {};
-  for (const r of allRecipients) {
-    rowToRecipient[r.row] = r;
+  // Ensure required columns exist before proceeding
+  ensureRequiredColumns();
+
+  const templateDocId = getConfig(CONFIG_KEYS.PDF_TEMPLATE_DOC_ID);
+
+  if (!templateDocId) {
+    throw new Error('PDF Template Document ID not configured. Please set it in the Config sheet to generate documents.');
   }
 
-  // Process recipients starting from current index
-  let processedInBatch = 0;
+  // Get or create the docs folder for this sheet
+  const folderId = getOrCreateOutputFolder('docs');
 
-  while (state.currentIndex < state.recipientRows.length) {
-    // Check time every BATCH_SIZE items
-    if (processedInBatch > 0 && processedInBatch % BATCH_CONFIG.BATCH_SIZE === 0) {
-      if (isTimeRunningOut(startTime)) {
-        // Save state and schedule continuation
-        saveBatchState(stateKey, state);
-        scheduleContinuation('continueDocumentCreation');
+  const recipients = getRecipientsForDocumentCreation();
 
-        // Return partial results with continuation flag
-        return {
-          ...state.results,
-          isPartial: true,
-          processed: state.currentIndex,
-          remaining: state.recipientRows.length - state.currentIndex,
-          message: `Processed ${state.currentIndex} of ${state.recipientRows.length}. Continuing automatically...`
-        };
-      }
-    }
+  if (recipients.length === 0) {
+    throw new Error('No recipients without documents found. All recipients already have Doc IDs.');
+  }
 
-    const row = state.recipientRows[state.currentIndex];
-    const recipient = rowToRecipient[row];
+  const results = {
+    total: recipients.length,
+    success: 0,
+    failed: 0,
+    errors: []
+  };
 
-    // Skip if recipient no longer exists or already has a doc ID
-    if (!recipient) {
-      state.currentIndex++;
-      continue;
-    }
-
-    // Check if already has Doc ID (may have been processed in a previous partial run)
-    const existingDocId = (recipient.data['Doc ID'] || '').toString().trim();
-    if (existingDocId !== '') {
-      state.currentIndex++;
-      continue;
-    }
-
+  // Process each recipient
+  for (const recipient of recipients) {
     try {
       // Create personalized document
-      const result = createPersonalizedDocument(state.templateDocId, recipient.data, state.folderId);
+      const result = createPersonalizedDocument(templateDocId, recipient.data, folderId);
 
       // Update recipient with document ID
       updateRecipientDocId(recipient.row, result.docId);
@@ -804,60 +584,21 @@ function createAllDocuments(isContinuation = false) {
       // Log success
       logDocumentCreation(recipient.data, result.docId, result.docUrl, 'success');
 
-      state.results.success++;
+      results.success++;
 
     } catch (error) {
       // Log failure
       logDocumentCreation(recipient.data, null, null, 'failed', error.message);
 
-      state.results.failed++;
-      state.results.errors.push({
+      results.failed++;
+      results.errors.push({
         recipient: recipient.data.Email || recipient.data.Name,
         error: error.message
       });
     }
-
-    state.currentIndex++;
-    processedInBatch++;
   }
 
-  // All done - clear state and return final results
-  clearBatchState(stateKey);
-  deleteContinuationTrigger('continueDocumentCreation');
-
-  return {
-    ...state.results,
-    isPartial: false,
-    message: `Completed: ${state.results.success} succeeded, ${state.results.failed} failed`
-  };
-}
-
-/**
- * Continuation function for document creation (called by trigger)
- */
-function continueDocumentCreation() {
-  try {
-    const results = createAllDocuments(true);
-
-    // If completed, show notification
-    if (!results.isPartial) {
-      SpreadsheetApp.getActiveSpreadsheet().toast(
-        `Document creation complete: ${results.success} succeeded, ${results.failed} failed`,
-        'Batch Complete',
-        10
-      );
-    }
-  } catch (error) {
-    // Clear state on error
-    clearBatchState(BATCH_STATE_KEYS.DOC_CREATION_STATE);
-    deleteContinuationTrigger('continueDocumentCreation');
-
-    SpreadsheetApp.getActiveSpreadsheet().toast(
-      `Error during batch processing: ${error.message}`,
-      'Error',
-      10
-    );
-  }
+  return results;
 }
 
 /**
@@ -988,92 +729,31 @@ function generatePdfFromDoc(docId, pdfFolderId, pdfName) {
 }
 
 /**
- * Generate PDFs for all recipients with documents (with batch processing)
- * @param {boolean} isContinuation - True if this is a continuation from a previous batch
+ * Generate PDFs for all recipients with documents
  * @returns {Object} Results with success and failure counts
  */
-function generateAllPdfs(isContinuation = false) {
-  const startTime = new Date();
-  const stateKey = BATCH_STATE_KEYS.PDF_GENERATION_STATE;
+function generateAllPdfs() {
+  // Get or create the pdfs folder for this sheet
+  const pdfFolderId = getOrCreateOutputFolder('pdfs');
 
-  // Get saved state if this is a continuation
-  let state = isContinuation ? getBatchState(stateKey) : null;
+  // Get all recipients with Doc IDs but no PDF IDs
+  const recipients = getRecipientsNeedingPdfs();
 
-  // Initialize or restore state
-  if (!state) {
-    // Get or create the pdfs folder for this sheet
-    const pdfFolderId = getOrCreateOutputFolder('pdfs');
-
-    // Get all recipients with Doc IDs but no PDF IDs
-    const recipients = getRecipientsNeedingPdfs();
-
-    if (recipients.length === 0) {
-      throw new Error('No recipients with documents needing PDFs');
-    }
-
-    state = {
-      pdfFolderId,
-      sheetName: getCurrentRecipientSheetName(),
-      recipientRows: recipients.map(r => r.row),  // Store row numbers to process
-      currentIndex: 0,
-      results: {
-        total: recipients.length,
-        success: 0,
-        failed: 0,
-        errors: []
-      }
-    };
+  if (recipients.length === 0) {
+    throw new Error('No recipients with documents needing PDFs');
   }
 
-  // Get fresh recipient data for remaining rows
-  const allRecipients = getAllRecipientsFormatted();
-  const rowToRecipient = {};
-  for (const r of allRecipients) {
-    rowToRecipient[r.row] = r;
-  }
+  const results = {
+    total: recipients.length,
+    success: 0,
+    failed: 0,
+    errors: []
+  };
 
-  // Process recipients starting from current index
-  let processedInBatch = 0;
-
-  while (state.currentIndex < state.recipientRows.length) {
-    // Check time every BATCH_SIZE items
-    if (processedInBatch > 0 && processedInBatch % BATCH_CONFIG.BATCH_SIZE === 0) {
-      if (isTimeRunningOut(startTime)) {
-        // Save state and schedule continuation
-        saveBatchState(stateKey, state);
-        scheduleContinuation('continuePdfGeneration');
-
-        // Return partial results with continuation flag
-        return {
-          ...state.results,
-          isPartial: true,
-          processed: state.currentIndex,
-          remaining: state.recipientRows.length - state.currentIndex,
-          message: `Processed ${state.currentIndex} of ${state.recipientRows.length}. Continuing automatically...`
-        };
-      }
-    }
-
-    const row = state.recipientRows[state.currentIndex];
-    const recipient = rowToRecipient[row];
-
-    // Skip if recipient no longer exists
-    if (!recipient) {
-      state.currentIndex++;
-      continue;
-    }
-
-    // Check if already has PDF ID (may have been processed in a previous partial run)
-    const existingPdfId = (recipient.data['PDF ID'] || '').toString().trim();
-    if (existingPdfId !== '') {
-      state.currentIndex++;
-      continue;
-    }
-
-    // Check if has Doc ID
+  // Process each recipient
+  for (const recipient of recipients) {
     const docId = (recipient.data['Doc ID'] || '').toString().trim();
     if (docId === '') {
-      state.currentIndex++;
       continue;
     }
 
@@ -1083,7 +763,7 @@ function generateAllPdfs(isContinuation = false) {
       const pdfName = docFile.getName();
 
       // Generate PDF from document
-      const result = generatePdfFromDoc(docId, state.pdfFolderId, pdfName);
+      const result = generatePdfFromDoc(docId, pdfFolderId, pdfName);
 
       // Update recipient with PDF ID
       updateRecipientPdfId(recipient.row, result.pdfId);
@@ -1091,60 +771,96 @@ function generateAllPdfs(isContinuation = false) {
       // Log success
       logPdfGeneration(recipient.data, result.pdfId, result.pdfUrl, 'success');
 
-      state.results.success++;
+      results.success++;
 
     } catch (error) {
       // Log failure
       logPdfGeneration(recipient.data, null, null, 'failed', error.message);
 
-      state.results.failed++;
-      state.results.errors.push({
+      results.failed++;
+      results.errors.push({
         recipient: recipient.data.Email || recipient.data.Name,
         error: error.message
       });
     }
-
-    state.currentIndex++;
-    processedInBatch++;
   }
 
-  // All done - clear state and return final results
-  clearBatchState(stateKey);
-  deleteContinuationTrigger('continuePdfGeneration');
-
-  return {
-    ...state.results,
-    isPartial: false,
-    message: `Completed: ${state.results.success} succeeded, ${state.results.failed} failed`
-  };
+  return results;
 }
 
 /**
- * Continuation function for PDF generation (called by trigger)
+ * Verify that all documents and PDFs exist in Google Drive
+ * Checks each recipient's Doc ID and PDF ID to ensure the files are accessible
+ * @returns {Object} Verification results with counts and lists of issues
  */
-function continuePdfGeneration() {
-  try {
-    const results = generateAllPdfs(true);
+function verifyDocumentsAndPdfs() {
+  const allRecipients = getAllRecipients();
 
-    // If completed, show notification
-    if (!results.isPartial) {
-      SpreadsheetApp.getActiveSpreadsheet().toast(
-        `PDF generation complete: ${results.success} succeeded, ${results.failed} failed`,
-        'Batch Complete',
-        10
-      );
+  const results = {
+    total: allRecipients.length,
+    docs: {
+      expected: 0,      // Recipients with Doc ID
+      verified: 0,      // Files that exist
+      missing: 0,       // Files that don't exist
+      missingList: []   // List of missing doc info
+    },
+    pdfs: {
+      expected: 0,      // Recipients with PDF ID
+      verified: 0,      // Files that exist
+      missing: 0,       // Files that don't exist
+      missingList: []   // List of missing PDF info
+    },
+    noDocId: 0,         // Recipients without Doc ID
+    noPdfId: 0          // Recipients without PDF ID
+  };
+
+  for (const recipient of allRecipients) {
+    const email = recipient.Email || '(no email)';
+    const docId = (recipient['Doc ID'] || '').toString().trim();
+    const pdfId = (recipient['PDF ID'] || '').toString().trim();
+
+    // Check Doc ID
+    if (docId === '') {
+      results.noDocId++;
+    } else {
+      results.docs.expected++;
+      try {
+        const file = DriveApp.getFileById(docId);
+        // File exists, check if it's accessible
+        file.getName();
+        results.docs.verified++;
+      } catch (e) {
+        results.docs.missing++;
+        results.docs.missingList.push({
+          email: email,
+          docId: docId,
+          error: e.message
+        });
+      }
     }
-  } catch (error) {
-    // Clear state on error
-    clearBatchState(BATCH_STATE_KEYS.PDF_GENERATION_STATE);
-    deleteContinuationTrigger('continuePdfGeneration');
 
-    SpreadsheetApp.getActiveSpreadsheet().toast(
-      `Error during batch processing: ${error.message}`,
-      'Error',
-      10
-    );
+    // Check PDF ID
+    if (pdfId === '') {
+      results.noPdfId++;
+    } else {
+      results.pdfs.expected++;
+      try {
+        const file = DriveApp.getFileById(pdfId);
+        // File exists, check if it's accessible
+        file.getName();
+        results.pdfs.verified++;
+      } catch (e) {
+        results.pdfs.missing++;
+        results.pdfs.missingList.push({
+          email: email,
+          pdfId: pdfId,
+          error: e.message
+        });
+      }
+    }
   }
+
+  return results;
 }
 
 /**

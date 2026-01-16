@@ -6,7 +6,7 @@ Send personalized emails using templates from Google Docs and recipient data fro
 
 This Google Apps Script application allows you to send personalized email campaigns directly from Google Sheets. It uses Google Docs for email templates with placeholder support and provides a simple menu-based interface for non-technical users.
 
-**Current Version: 0.4.0** - Batch Processing & Large Dataset Support
+**Current Version: 0.4.1** - Document Verification & Format Preservation
 
 ## Features (MVP1.1)
 
@@ -28,14 +28,14 @@ This Google Apps Script application allows you to send personalized email campai
 - ✅ **Orphan file cleanup** - Remove files not matching any recipient
 - ✅ **Multi-sheet support** - Work with multiple recipient sheets in the same spreadsheet
 - ✅ **Auto-organized folders** - Files automatically organized in `OutputFolder/SheetName/docs/` and `OutputFolder/SheetName/pdfs/`
-- ✅ **Batch processing** - Handle large datasets with automatic continuation
 - ✅ **Combined generation** - Generate all docs & PDFs in one operation
+- ✅ **Format preservation** - Number/date formatting from spreadsheet preserved in placeholders (e.g., $1,000)
+- ✅ **Document verification** - Verify all docs and PDFs exist in Google Drive
 
 ### System
 - ✅ **Comprehensive logging** - All activities logged to a sheet
 - ✅ **Simple UI** - Custom menu in Google Sheets for easy access
 - ✅ **Config sheet** - Easy configuration management
-- ✅ **Batch status monitoring** - Check progress and manually continue interrupted batches
 
 ## Installation
 
@@ -319,20 +319,19 @@ These features may be added in future versions.
 
 ## Version History
 
-### v0.4.0 (2026-01-14) - Batch Processing & Large Dataset Support
+### v0.4.1 (2026-01-15) - Document Verification & Format Preservation
 **New Features:**
-- **Batch processing**: Automatically handles Google Apps Script execution time limits (6 minutes)
-- **Automatic continuation**: Long-running operations continue automatically in the background via triggers
-- **Batch status monitoring**: New menu item to check progress of background operations
-- **Manual continuation**: Resume interrupted batches manually if triggers fail
-- **Cancel batch processing**: Stop and clear batch state when needed
-- **Combined docs & PDFs generation**: New "Generate All Docs & PDFs" menu item for one-click operation
+- **Document verification**: New "Verify Documents & PDFs" menu item to check if all files exist in Google Drive
+- **Format preservation**: Number/date/currency formatting from spreadsheet is now preserved in placeholders (e.g., $1,000 instead of 1000)
 
-**Improvements:**
-- Large batch warning threshold increased to 100 items
-- Better progress feedback during batch operations
-- Toast notifications when background processing completes
-- State persistence across execution batches
+**Changes:**
+- Removed batch processing with automatic continuation (was causing confusion)
+- Simplified document/PDF generation to run synchronously
+- Removed batch status monitoring menu items
+
+### v0.4.0 (2026-01-14) - Combined Generation
+**New Features:**
+- **Combined docs & PDFs generation**: New "Generate All Docs & PDFs" menu item for one-click operation
 
 ### v0.3.0 (2026-01-14) - Multi-Sheet Support & Improved Folder Organization
 **New Features:**
