@@ -6,7 +6,7 @@ Send personalized emails using templates from Google Docs and recipient data fro
 
 This Google Apps Script application allows you to send personalized email campaigns directly from Google Sheets. It uses Google Docs for email templates with placeholder support and provides a simple menu-based interface for non-technical users.
 
-**Current Version: 0.4.1** - Document Verification & Format Preservation
+**Current Version: 0.4.0** - Combined Generation & Verification
 
 ## Features (MVP1.1)
 
@@ -319,19 +319,11 @@ These features may be added in future versions.
 
 ## Version History
 
-### v0.4.1 (2026-01-15) - Document Verification & Format Preservation
-**New Features:**
-- **Document verification**: New "Verify Documents & PDFs" menu item to check if all files exist in Google Drive
-- **Format preservation**: Number/date/currency formatting from spreadsheet is now preserved in placeholders (e.g., $1,000 instead of 1000)
-
-**Changes:**
-- Removed batch processing with automatic continuation (was causing confusion)
-- Simplified document/PDF generation to run synchronously
-- Removed batch status monitoring menu items
-
-### v0.4.0 (2026-01-14) - Combined Generation
+### v0.4.0 (2026-01-16) - Combined Generation & Verification
 **New Features:**
 - **Combined docs & PDFs generation**: New "Generate All Docs & PDFs" menu item for one-click operation
+- **Document verification**: New "Verify Documents & PDFs" menu item to check if all files exist in Google Drive
+- **Format preservation**: Number/date/currency formatting from spreadsheet is now preserved in placeholders (e.g., $1,000 instead of 1000)
 
 ### v0.3.0 (2026-01-14) - Multi-Sheet Support & Improved Folder Organization
 **New Features:**
