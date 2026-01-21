@@ -174,10 +174,11 @@ function sendTestEmail() {
 }
 
 /**
- * Send campaign to all pending recipients
+ * Send campaign to pending recipients
+ * @param {number} [limit] - Optional limit on number of recipients to process
  * @returns {Object} Summary with total, success, failed counts and errors
  */
-function sendCampaign() {
+function sendCampaign(limit) {
   try {
     // Check configuration
     const validation = validateConfig();
@@ -190,8 +191,11 @@ function sendCampaign() {
     // Ensure status column exists
     ensureStatusColumn();
 
-    // Get pending recipients
-    const recipients = getPendingRecipients();
+    // Get pending recipients (limited if specified)
+    let recipients = getPendingRecipients();
+    if (limit && limit > 0 && recipients.length > limit) {
+      recipients = recipients.slice(0, limit);
+    }
 
     if (recipients.length === 0) {
       throw new Error('No pending recipients found. All emails may have already been sent.');

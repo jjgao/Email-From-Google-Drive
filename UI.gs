@@ -14,7 +14,10 @@ function onOpen() {
     .addItem('📑 Create All Documents', 'createAllDocumentsUI')
     .addItem('📕 Generate All PDFs', 'generateAllPdfsUI')
     .addItem('📑📕 Generate All Docs & PDFs', 'generateAllDocsAndPdfsUI')
-    .addItem('🚀 Send Campaign', 'sendCampaignUI')
+    .addSubMenu(ui.createMenu('📧 Send Emails...')
+      .addItem('First 3 Pending', 'sendFirst3PendingUI')
+      .addItem('First 20 Pending', 'sendFirst20PendingUI')
+      .addItem('All Pending', 'sendAllPendingUI'))
     .addSeparator()
     // Reports & Monitoring
     .addItem('📊 View Logs', 'openLogSheet')
@@ -280,9 +283,31 @@ function sendTestEmailUI() {
 }
 
 /**
- * Send campaign from menu
+ * Send first 3 pending emails
  */
-function sendCampaignUI() {
+function sendFirst3PendingUI() {
+  sendEmailsWithLimit(3);
+}
+
+/**
+ * Send first 20 pending emails
+ */
+function sendFirst20PendingUI() {
+  sendEmailsWithLimit(20);
+}
+
+/**
+ * Send all pending emails
+ */
+function sendAllPendingUI() {
+  sendEmailsWithLimit(null);
+}
+
+/**
+ * Send emails with optional limit (internal helper)
+ * @param {number|null} limit - Number of emails to send, or null for all
+ */
+function sendEmailsWithLimit(limit) {
   const ui = SpreadsheetApp.getUi();
 
   // Check configuration first
@@ -304,42 +329,50 @@ function sendCampaignUI() {
       return;
     }
 
+    // Calculate actual count to send
+    const countToSend = limit ? Math.min(limit, summary.pending) : summary.pending;
+
     // Check quota
     const quota = getQuotaInfo();
-    if (quota.remaining < summary.pending) {
+    if (quota.remaining < countToSend) {
       ui.alert(
         'Quota Warning',
-        `Sheet: "${sheetName}"\n\nYou have ${quota.remaining} emails remaining in your daily quota, but ${summary.pending} emails to send.\n\nPlease reduce recipients or wait until tomorrow.`,
+        `Sheet: "${sheetName}"\n\nYou have ${quota.remaining} emails remaining in your daily quota, but trying to send ${countToSend} emails.\n\nPlease reduce recipients or wait until tomorrow.`,
         ui.ButtonSet.OK
       );
       return;
     }
 
+    // Build confirmation message
+    let confirmMsg = `Sheet: "${sheetName}"\n`;
+    confirmMsg += `Emails to send: ${countToSend}`;
+    if (limit && summary.pending > limit) {
+      confirmMsg += ` (of ${summary.pending} pending)`;
+    }
+    confirmMsg += `\nQuota remaining: ${quota.remaining}\n\n`;
+    confirmMsg += 'This action cannot be undone. Continue?';
+
     // Confirm send
     const response = ui.alert(
-      'Confirm Send Campaign',
-      `Sheet: "${sheetName}"\n` +
-      `Recipients: ${summary.pending}\n` +
-      `Quota remaining: ${quota.remaining}\n\n` +
-      'This action cannot be undone. Continue?\n\n' +
-      '(To change the sheet, cancel and use a different active sheet)',
+      'Confirm Send Emails',
+      confirmMsg,
       ui.ButtonSet.YES_NO
     );
 
     if (response === ui.Button.YES) {
       // Show progress message
-      SpreadsheetApp.getActiveSpreadsheet().toast('Sending emails...', 'Campaign Progress', -1);
+      SpreadsheetApp.getActiveSpreadsheet().toast(`Sending ${countToSend} emails...`, 'Sending', -1);
 
-      const results = sendCampaign();
+      const results = sendCampaign(limit);
 
       // Log summary
       logCampaignSummary(results);
 
       // Hide progress
-      SpreadsheetApp.getActiveSpreadsheet().toast('Complete!', 'Campaign Progress', 3);
+      SpreadsheetApp.getActiveSpreadsheet().toast('Complete!', 'Sending', 3);
 
       // Show results
-      let message = `Campaign Complete!\n\n`;
+      let message = `Emails Sent!\n\n`;
       message += `Total: ${results.total}\n`;
       message += `Success: ${results.success}\n`;
       message += `Failed: ${results.failed}\n`;
@@ -356,12 +389,12 @@ function sendCampaignUI() {
         }
       }
 
-      ui.alert('Campaign Results', message, ui.ButtonSet.OK);
+      ui.alert('Send Results', message, ui.ButtonSet.OK);
     }
 
   } catch (error) {
-    SpreadsheetApp.getActiveSpreadsheet().toast('Error occurred', 'Campaign Progress', 3);
-    ui.alert('Error', `Campaign failed:\n\n${error.message}`, ui.ButtonSet.OK);
+    SpreadsheetApp.getActiveSpreadsheet().toast('Error occurred', 'Sending', 3);
+    ui.alert('Error', `Failed to send emails:\n\n${error.message}`, ui.ButtonSet.OK);
   }
 }
 
