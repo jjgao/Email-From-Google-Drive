@@ -15,9 +15,11 @@ function onOpen() {
     .addItem('📕 Generate All PDFs', 'generateAllPdfsUI')
     .addItem('📑📕 Generate All Docs & PDFs', 'generateAllDocsAndPdfsUI')
     .addSubMenu(ui.createMenu('📧 Send Emails...')
-      .addItem('First 3 Pending', 'sendFirst3PendingUI')
+      .addItem('First 1 Pending', 'sendFirst1PendingUI')
+      .addItem('First 5 Pending', 'sendFirst5PendingUI')
       .addItem('First 20 Pending', 'sendFirst20PendingUI')
-      .addItem('All Pending', 'sendAllPendingUI'))
+      .addItem('First 50 Pending', 'sendFirst50PendingUI')
+      .addItem('First 100 Pending', 'sendFirst100PendingUI'))
     .addSeparator()
     // Reports & Monitoring
     .addItem('📊 View Logs', 'openLogSheet')
@@ -283,10 +285,17 @@ function sendTestEmailUI() {
 }
 
 /**
- * Send first 3 pending emails
+ * Send first 1 pending email
  */
-function sendFirst3PendingUI() {
-  sendEmailsWithLimit(3);
+function sendFirst1PendingUI() {
+  sendEmailsWithLimit(1);
+}
+
+/**
+ * Send first 5 pending emails
+ */
+function sendFirst5PendingUI() {
+  sendEmailsWithLimit(5);
 }
 
 /**
@@ -297,10 +306,17 @@ function sendFirst20PendingUI() {
 }
 
 /**
- * Send all pending emails
+ * Send first 50 pending emails
  */
-function sendAllPendingUI() {
-  sendEmailsWithLimit(null);
+function sendFirst50PendingUI() {
+  sendEmailsWithLimit(50);
+}
+
+/**
+ * Send first 100 pending emails
+ */
+function sendFirst100PendingUI() {
+  sendEmailsWithLimit(100);
 }
 
 /**
