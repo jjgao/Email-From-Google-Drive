@@ -241,7 +241,9 @@ function sendCampaign(limit) {
     if (results.sentRecipients.length > 0) {
       // Wait a moment for Gmail to index messages
       Utilities.sleep(1000);
-      populateEmailIds(results.sentRecipients);
+      const postSendResults = populateEmailIds(results.sentRecipients);
+      results.emailIdsFound = postSendResults.emailIdsFound;
+      results.earlyBounces = postSendResults.bouncesFound;
     }
 
     return results;
@@ -253,9 +255,24 @@ function sendCampaign(limit) {
 
 /**
  * Populate Email IDs for sent recipients by searching Gmail
+ * Also checks for early bounces while accessing the thread
  * @param {Array} sentRecipients - Array of {email, subject, rowIndex}
+ * @returns {Object} Results with emailIdsFound and bouncesFound counts
  */
 function populateEmailIds(sentRecipients) {
+  const results = {
+    emailIdsFound: 0,
+    bouncesFound: 0
+  };
+
+  // Bounce sender patterns (case-insensitive)
+  const bounceSenders = [
+    'mailer-daemon',
+    'postmaster',
+    'mail-daemon',
+    'mailerdaemon'
+  ];
+
   for (const recipient of sentRecipients) {
     try {
       // Search sent folder for recent message to this recipient
@@ -264,12 +281,33 @@ function populateEmailIds(sentRecipients) {
         // Find the most recent message matching our subject
         for (const thread of threads) {
           const messages = thread.getMessages();
+          let foundMessage = null;
+
+          // Find our sent message
           for (let i = messages.length - 1; i >= 0; i--) {
             const msg = messages[i];
             if (msg.getSubject() === recipient.subject) {
+              foundMessage = msg;
               updateRecipientEmailId(recipient.rowIndex, msg.getId());
+              results.emailIdsFound++;
               break;
             }
+          }
+
+          // If we found our message, check for bounces in the same thread
+          if (foundMessage) {
+            for (const msg of messages) {
+              const from = msg.getFrom().toLowerCase();
+              for (const bounceSender of bounceSenders) {
+                if (from.includes(bounceSender)) {
+                  // Found a bounce - update status
+                  updateRecipientStatus(recipient.rowIndex, 'bounced');
+                  results.bouncesFound++;
+                  break;
+                }
+              }
+            }
+            break; // Found our message, move to next recipient
           }
         }
       }
@@ -278,6 +316,8 @@ function populateEmailIds(sentRecipients) {
       console.log(`Could not retrieve message ID for ${recipient.email}: ${error.message}`);
     }
   }
+
+  return results;
 }
 
 /**

@@ -482,6 +482,10 @@ function sendEmailsWithLimit(limit) {
       message += `Success: ${results.success}\n`;
       message += `Failed: ${results.failed}\n`;
 
+      if (results.earlyBounces > 0) {
+        message += `Early bounces detected: ${results.earlyBounces}\n`;
+      }
+
       if (results.failed > 0) {
         message += `\nFirst few errors:\n`;
         const errorPreview = results.errors.slice(0, 3);
