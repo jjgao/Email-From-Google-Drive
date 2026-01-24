@@ -97,17 +97,33 @@ function sendEmail(recipient, templateDocId, isTest = false) {
     }
 
     // Send email using GmailApp
-    const sentMessage = GmailApp.sendEmail(
+    GmailApp.sendEmail(
       recipient.Email,
       subject,
       '', // Plain text body (empty, using HTML)
       emailOptions
     );
 
+    // Search for the sent message to get its ID
+    // Look in sent folder for recent message to this recipient
+    let messageId = '';
+    try {
+      const threads = GmailApp.search(`to:${recipient.Email} subject:"${subject}" in:sent`, 0, 1);
+      if (threads.length > 0) {
+        const messages = threads[0].getMessages();
+        if (messages.length > 0) {
+          messageId = messages[messages.length - 1].getId();
+        }
+      }
+    } catch (searchError) {
+      // If search fails, continue without message ID
+      console.log(`Could not retrieve message ID: ${searchError.message}`);
+    }
+
     return {
       success: true,
       error: null,
-      messageId: sentMessage.getId()
+      messageId: messageId
     };
 
   } catch (error) {
@@ -216,7 +232,9 @@ function sendCampaign(limit) {
       if (result.success) {
         results.success++;
         updateRecipientStatus(recipient._rowIndex, 'sent');
-        updateRecipientEmailId(recipient._rowIndex, result.messageId);
+        if (result.messageId) {
+          updateRecipientEmailId(recipient._rowIndex, result.messageId);
+        }
         logEmail(recipient.Email, recipient.Name || '', 'sent', '');
       } else {
         results.failed++;
