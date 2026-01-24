@@ -97,7 +97,7 @@ function sendEmail(recipient, templateDocId, isTest = false) {
     }
 
     // Send email using GmailApp
-    GmailApp.sendEmail(
+    const sentMessage = GmailApp.sendEmail(
       recipient.Email,
       subject,
       '', // Plain text body (empty, using HTML)
@@ -106,7 +106,8 @@ function sendEmail(recipient, templateDocId, isTest = false) {
 
     return {
       success: true,
-      error: null
+      error: null,
+      messageId: sentMessage.getId()
     };
 
   } catch (error) {
@@ -215,6 +216,7 @@ function sendCampaign(limit) {
       if (result.success) {
         results.success++;
         updateRecipientStatus(recipient._rowIndex, 'sent');
+        updateRecipientEmailId(recipient._rowIndex, result.messageId);
         logEmail(recipient.Email, recipient.Name || '', 'sent', '');
       } else {
         results.failed++;
@@ -248,5 +250,101 @@ function getQuotaInfo() {
     remaining: quotaRemaining,
     total: quotaRemaining > 100 ? 1500 : 100 // Estimate based on remaining quota
   };
+}
+
+/**
+ * Check for bounced emails by examining threads for bounce messages
+ * Looks for messages from mailer-daemon or postmaster in the same thread
+ * @returns {Object} Results with checked, bounced counts and bounce list
+ */
+function checkForBounces() {
+  const recipients = getAllRecipients();
+
+  const results = {
+    checked: 0,
+    bounced: 0,
+    noAccess: 0,
+    bounceList: [],
+    errors: []
+  };
+
+  // Bounce sender patterns (case-insensitive)
+  const bounceSenders = [
+    'mailer-daemon',
+    'postmaster',
+    'mail-daemon',
+    'mailerdaemon'
+  ];
+
+  for (const recipient of recipients) {
+    const emailId = (recipient['Email ID'] || '').toString().trim();
+    const status = (recipient['Email Status'] || '').toString().trim().toLowerCase();
+
+    // Skip if no Email ID or already marked as bounced
+    if (!emailId || status === 'bounced') {
+      continue;
+    }
+
+    // Only check emails that were sent
+    if (status !== 'sent') {
+      continue;
+    }
+
+    results.checked++;
+
+    try {
+      // Get the original message
+      const message = GmailApp.getMessageById(emailId);
+      if (!message) {
+        continue;
+      }
+
+      // Get the thread
+      const thread = message.getThread();
+      const messages = thread.getMessages();
+
+      // Check if any message in thread is from a bounce address
+      let isBounced = false;
+      for (const msg of messages) {
+        const from = msg.getFrom().toLowerCase();
+
+        for (const bounceSender of bounceSenders) {
+          if (from.includes(bounceSender)) {
+            isBounced = true;
+            break;
+          }
+        }
+
+        if (isBounced) break;
+      }
+
+      if (isBounced) {
+        results.bounced++;
+        results.bounceList.push({
+          email: recipient.Email,
+          name: recipient.Name || '',
+          rowIndex: recipient._rowIndex
+        });
+
+        // Update status to bounced
+        updateRecipientStatus(recipient._rowIndex, 'bounced');
+      }
+
+    } catch (error) {
+      // Check if it's an access/permission error
+      const errorMsg = error.message.toLowerCase();
+      if (errorMsg.includes('access') || errorMsg.includes('permission') ||
+          errorMsg.includes('not found') || errorMsg.includes('no message')) {
+        results.noAccess++;
+      } else {
+        results.errors.push({
+          email: recipient.Email,
+          error: error.message
+        });
+      }
+    }
+  }
+
+  return results;
 }
 

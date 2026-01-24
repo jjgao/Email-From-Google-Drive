@@ -21,7 +21,9 @@ function onOpen() {
       .addItem('First 50 Pending', 'sendFirst50PendingUI')
       .addItem('First 100 Pending', 'sendFirst100PendingUI')
       .addSeparator()
-      .addItem('All Pending', 'sendAllPendingUI'))
+      .addItem('All Pending', 'sendAllPendingUI')
+      .addSeparator()
+      .addItem('Check for Bounces', 'checkForBouncesUI'))
     .addSeparator()
     // Reports & Monitoring
     .addItem('📊 View Logs', 'openLogSheet')
@@ -326,6 +328,84 @@ function sendFirst100PendingUI() {
  */
 function sendAllPendingUI() {
   sendEmailsWithLimit(null);
+}
+
+/**
+ * Check for bounced emails (UI wrapper)
+ */
+function checkForBouncesUI() {
+  const ui = SpreadsheetApp.getUi();
+
+  try {
+    const sheetName = getCurrentRecipientSheetName();
+
+    // Get count of sent emails with Email IDs
+    const recipients = getAllRecipients();
+    const sentWithEmailId = recipients.filter(r => {
+      const emailId = (r['Email ID'] || '').toString().trim();
+      const status = (r['Email Status'] || '').toString().trim().toLowerCase();
+      return emailId && status === 'sent';
+    });
+
+    if (sentWithEmailId.length === 0) {
+      ui.alert(
+        'No Emails to Check',
+        `Sheet: "${sheetName}"\n\nNo sent emails with Email IDs found.\n\nBounce checking requires emails to be sent with the Email ID recorded.`,
+        ui.ButtonSet.OK
+      );
+      return;
+    }
+
+    // Confirm
+    const response = ui.alert(
+      'Check for Bounces',
+      `Sheet: "${sheetName}"\n\nThis will check ${sentWithEmailId.length} sent emails for bounce messages.\n\nEmails found to be bounced will have their status updated to "bounced".\n\nContinue?`,
+      ui.ButtonSet.YES_NO
+    );
+
+    if (response !== ui.Button.YES) {
+      return;
+    }
+
+    SpreadsheetApp.getActiveSpreadsheet().toast('Checking for bounces...', 'Processing', -1);
+
+    const results = checkForBounces();
+
+    SpreadsheetApp.getActiveSpreadsheet().toast('Bounce check complete!', 'Done', 3);
+
+    // Build result message
+    let message = `Sheet: "${sheetName}"\n\n`;
+    message += `Emails checked: ${results.checked}\n`;
+    message += `Bounces found: ${results.bounced}\n`;
+
+    if (results.noAccess > 0) {
+      message += `No access: ${results.noAccess} (sent by another user)\n`;
+    }
+
+    if (results.bounced > 0) {
+      message += '\nBounced emails:\n';
+      const bouncesToShow = results.bounceList.slice(0, 10);
+      bouncesToShow.forEach(item => {
+        message += `• ${item.email}\n`;
+      });
+      if (results.bounceList.length > 10) {
+        message += `... and ${results.bounceList.length - 10} more\n`;
+      }
+      message += '\nStatus updated to "bounced" for these recipients.';
+    } else if (results.noAccess === 0) {
+      message += '\nNo bounces detected.';
+    }
+
+    if (results.errors.length > 0) {
+      message += `\n\nErrors: ${results.errors.length} (some emails could not be checked)`;
+    }
+
+    ui.alert('Bounce Check Results', message, ui.ButtonSet.OK);
+
+  } catch (error) {
+    SpreadsheetApp.getActiveSpreadsheet().toast('Bounce check failed', 'Error', 3);
+    ui.alert('Error', `Failed to check for bounces:\n\n${error.message}`, ui.ButtonSet.OK);
+  }
 }
 
 /**

@@ -343,6 +343,28 @@ function ensureRequiredColumns() {
 }
 
 /**
+ * Update recipient Email ID in sheet
+ * @param {number} rowIndex - Row index in sheet (1-based)
+ * @param {string} emailId - Gmail message ID to store
+ */
+function updateRecipientEmailId(rowIndex, emailId) {
+  const sheet = getRecipientSheet();
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+
+  // Find Email ID column index
+  const emailIdColumnIndex = headers.indexOf('Email ID') + 1;
+
+  if (emailIdColumnIndex > 0) {
+    sheet.getRange(rowIndex, emailIdColumnIndex).setValue(emailId);
+  } else {
+    // Email ID column doesn't exist, add it
+    const lastColumn = sheet.getLastColumn();
+    sheet.getRange(1, lastColumn + 1).setValue('Email ID');
+    sheet.getRange(rowIndex, lastColumn + 1).setValue(emailId);
+  }
+}
+
+/**
  * Validate recipient data
  * @param {Object} recipient - Recipient object
  * @returns {Object} Object with isValid boolean and error message
