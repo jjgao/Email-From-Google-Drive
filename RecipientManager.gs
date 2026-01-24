@@ -352,15 +352,18 @@ function updateRecipientEmailId(rowIndex, emailId) {
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
 
   // Find Email ID column index
-  const emailIdColumnIndex = headers.indexOf('Email ID') + 1;
+  let emailIdColumnIndex = headers.indexOf('Email ID') + 1;
 
-  if (emailIdColumnIndex > 0) {
-    sheet.getRange(rowIndex, emailIdColumnIndex).setValue(emailId);
-  } else {
-    // Email ID column doesn't exist, add it
+  // Create column if it doesn't exist
+  if (emailIdColumnIndex === 0) {
     const lastColumn = sheet.getLastColumn();
     sheet.getRange(1, lastColumn + 1).setValue('Email ID');
-    sheet.getRange(rowIndex, lastColumn + 1).setValue(emailId);
+    emailIdColumnIndex = lastColumn + 1;
+  }
+
+  // Only set value if emailId is provided
+  if (emailId) {
+    sheet.getRange(rowIndex, emailIdColumnIndex).setValue(emailId);
   }
 }
 

@@ -232,9 +232,7 @@ function sendCampaign(limit) {
       if (result.success) {
         results.success++;
         updateRecipientStatus(recipient._rowIndex, 'sent');
-        if (result.messageId) {
-          updateRecipientEmailId(recipient._rowIndex, result.messageId);
-        }
+        updateRecipientEmailId(recipient._rowIndex, result.messageId);
         logEmail(recipient.Email, recipient.Name || '', 'sent', '');
       } else {
         results.failed++;
