@@ -684,7 +684,10 @@ function generatePdfFromDoc(docId, pdfFolderId, pdfName) {
     // Get the document as a PDF blob
     const doc = DriveApp.getFileById(docId);
     const blob = doc.getAs('application/pdf');
-    blob.setName(pdfName);
+
+    // Ensure filename ends with .pdf
+    const finalName = pdfName.toLowerCase().endsWith('.pdf') ? pdfName : pdfName + '.pdf';
+    blob.setName(finalName);
 
     // Get the PDF folder
     const folder = DriveApp.getFolderById(pdfFolderId);
