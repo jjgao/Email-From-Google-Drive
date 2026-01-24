@@ -6,7 +6,7 @@ Send personalized emails using templates from Google Docs and recipient data fro
 
 This Google Apps Script application allows you to send personalized email campaigns directly from Google Sheets. It uses Google Docs for email templates with placeholder support and provides a simple menu-based interface for non-technical users.
 
-**Current Version: 0.0.4** - Combined Generation & Verification
+**Current Version: 0.0.5** - Email Tracking & Bounce Detection
 
 ## Features (MVP1.1)
 
@@ -17,7 +17,9 @@ This Google Apps Script application allows you to send personalized email campai
 - ✅ **Auto-attach PDFs** - Automatically attach PDFs when PDF ID exists
 - ✅ **Multiple attachments** - Support for multiple file attachments per email
 - ✅ **Test email capability** - Send test emails before launching campaigns
-- ✅ **Status tracking** - Track sent/failed status for each recipient
+- ✅ **Status tracking** - Track sent/failed/bounced status for each recipient
+- ✅ **Email ID tracking** - Records Gmail message IDs for sent emails
+- ✅ **Bounce detection** - Check for bounced emails and update status automatically
 - ✅ **Quota management** - Check available quota before sending
 
 ### Document Generation
@@ -73,7 +75,8 @@ Additional columns are auto-created when needed:
 - **Filename** - Custom document name (optional, auto-generated if empty)
 - **Doc ID** - Tracks generated Google Docs
 - **PDF ID** - Tracks generated PDFs
-- **Email Status** - Tracks email send status (pending/sent/failed)
+- **Email Status** - Tracks email send status (pending/sent/failed/bounced)
+- **Email ID** - Gmail message ID for tracking and bounce detection
 
 **Or** use **Email Campaign → Setup → Create Sample Data** to create a sample sheet automatically.
 
@@ -183,6 +186,17 @@ To attach files to emails for specific recipients:
 - If a recipient has a PDF ID, the PDF is automatically attached
 - No need to add the PDF ID to "Attachment IDs" column
 - "Attachment IDs" is for additional files beyond the main PDF
+
+### Check for Bounces
+
+After sending emails, you can check for bounced emails:
+
+1. Click **Email Campaign → Send Emails... → Check for Bounces**
+2. The system examines email threads for bounce messages from mailer-daemon/postmaster
+3. Recipients with bounced emails are automatically marked as "bounced"
+4. Review the summary dialog showing which emails bounced
+
+**Note:** Early bounces are also detected automatically right after sending. The manual "Check for Bounces" is useful for checking later (e.g., next day) when more bounces may have arrived.
 
 ### View Logs
 
@@ -318,6 +332,18 @@ Run the system test from Apps Script editor:
 These features may be added in future versions.
 
 ## Version History
+
+### v0.0.5 (2026-01-24) - Email Tracking & Bounce Detection
+**New Features:**
+- **Email ID tracking**: Gmail message IDs are now recorded after sending for tracking and bounce detection
+- **Bounce detection**: New "Check for Bounces" menu item to detect bounced emails by examining email threads
+- **Early bounce detection**: Bounces are also checked automatically right after sending
+- **Bounced status**: New "bounced" status for recipients whose emails bounced
+
+**Improvements:**
+- Email Status now includes "bounced" as a possible value
+- Send results dialog shows early bounce count if any detected
+- Bounce check handles emails sent by other users gracefully (marks as "no access")
 
 ### v0.0.4 (2026-01-16) - Combined Generation & Verification
 **New Features:**
