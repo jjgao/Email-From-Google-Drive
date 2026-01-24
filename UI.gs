@@ -19,7 +19,9 @@ function onOpen() {
       .addItem('First 5 Pending', 'sendFirst5PendingUI')
       .addItem('First 20 Pending', 'sendFirst20PendingUI')
       .addItem('First 50 Pending', 'sendFirst50PendingUI')
-      .addItem('First 100 Pending', 'sendFirst100PendingUI'))
+      .addItem('First 100 Pending', 'sendFirst100PendingUI')
+      .addSeparator()
+      .addItem('All Pending', 'sendAllPendingUI'))
     .addSeparator()
     // Reports & Monitoring
     .addItem('📊 View Logs', 'openLogSheet')
@@ -317,6 +319,13 @@ function sendFirst50PendingUI() {
  */
 function sendFirst100PendingUI() {
   sendEmailsWithLimit(100);
+}
+
+/**
+ * Send all pending emails
+ */
+function sendAllPendingUI() {
+  sendEmailsWithLimit(null);
 }
 
 /**
