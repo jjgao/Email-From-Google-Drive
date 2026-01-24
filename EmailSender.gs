@@ -105,14 +105,25 @@ function sendEmail(recipient, templateDocId, isTest = false) {
     );
 
     // Search for the sent message to get its ID
-    // Look in sent folder for recent message to this recipient
+    // Small delay to allow Gmail to index the message
+    Utilities.sleep(500);
+
     let messageId = '';
     try {
-      const threads = GmailApp.search(`to:${recipient.Email} subject:"${subject}" in:sent`, 0, 1);
+      // Search sent folder for recent message to this recipient
+      const threads = GmailApp.search(`to:${recipient.Email} in:sent newer_than:1d`, 0, 5);
       if (threads.length > 0) {
-        const messages = threads[0].getMessages();
-        if (messages.length > 0) {
-          messageId = messages[messages.length - 1].getId();
+        // Find the most recent message matching our subject
+        for (const thread of threads) {
+          const messages = thread.getMessages();
+          for (let i = messages.length - 1; i >= 0; i--) {
+            const msg = messages[i];
+            if (msg.getSubject() === subject) {
+              messageId = msg.getId();
+              break;
+            }
+          }
+          if (messageId) break;
         }
       }
     } catch (searchError) {
